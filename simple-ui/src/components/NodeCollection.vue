@@ -197,7 +197,8 @@ const organizeNodesByViewMode = () => {
     }
   });
   const organizedTreeData = [...treeData.keys()].map((k) => ({
-    label: k,
+    // label: k,
+    label: k.split("\n")[0],
     selectable: false,
     header: 'root',
     id: k,

@@ -31,7 +31,7 @@
           data-cy="leftDrawer"
         />
 
-        <q-toolbar-title> Flow UI </q-toolbar-title>
+        <q-toolbar-title> Rainfall </q-toolbar-title>
 
         <q-space></q-space>
 

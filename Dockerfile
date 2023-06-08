@@ -38,6 +38,9 @@ RUN mkdir -p output_repositories/.archive
 RUN apt-get -y update
 RUN apt-get -y install git
 
+RUN mkdir -p /root/.ssh && chmod 0700 /root/.ssh && ssh-keyscan bitbucket.org > /root/.ssh/known_hosts
+RUN echo "${SSH_KEY}" > /root/.ssh/id_rsa && chmod 600 /root/.ssh/id_rsa
+
 COPY simple-backend/simple_backend simple_backend/
 COPY simple-backend/requirements.txt ./
 RUN pip install -r requirements.txt
