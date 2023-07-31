@@ -17,8 +17,10 @@
  """
 
 from fastapi import APIRouter, Response
+from starlette.status import HTTP_204_NO_CONTENT
 from simple_backend import config
 from simple_backend.errors import BadRequestError
+from simple_backend.schemas.dataflow import DataFlow
 from simple_backend.schemas.repository_schemas import RepositoryGet, RepositoryPost
 from simple_backend.service import repository_service as rs
 
@@ -87,3 +89,16 @@ async def unarchive_repository(repository: str):
 
     return RepositoryPost(repository=repository, path=str(config.BASE_OUTPUT_DIR / repository),
                           uri=f"/repositories/{repository}")
+
+
+@router.get('/{repository}/dataflows/{id}', response_model=DataFlow)
+async def get_dataflow(repository: str, id: str):
+    """ Gets the specified Dataflow from the repository. """
+    return rs.get_dataflow_from_repository(repository, id)
+
+
+@router.delete('/{repository}/dataflows/{id}', status_code=204, response_class=Response)
+async def delete_dataflow(repository: str, id: str) -> None:
+    """ Deletes a Dataflow in the repository. """
+    rs.delete_dataflow(repository, id)
+    return Response(status_code=HTTP_204_NO_CONTENT)
