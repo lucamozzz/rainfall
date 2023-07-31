@@ -94,3 +94,10 @@ export interface Repository {
   name: string;
   type: string;
 }
+
+export interface ExecutionInfo {
+  id: string;
+  status?: string;
+  logs?: string[];
+  ui?: string;
+}

@@ -105,7 +105,6 @@ import { useDialogPluginComponent, useQuasar } from 'quasar';
 import { api } from 'src/boot/axios';
 import { AxiosError } from 'axios';
 import { downloadPythonScript, downloadUI } from '../utils';
-import { setUIState } from '../d3/utils';
 import { useRouter } from 'vue-router';
 
 const props = defineProps<{
@@ -148,7 +147,8 @@ const loadDataflow = async (flow: string) => {
 };
 
 const onLoadUI = (flow: string) => {
-  setUIState(JSON.parse(metadata.value.get(flow).ui));
+  let state = metadata.value.get(flow).ui
+  sessionStorage.setItem('canvasState', state)
   router.push({ name: 'canvas' });
 };
 

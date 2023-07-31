@@ -21,7 +21,6 @@
     <q-header elevated bordered>
       <q-toolbar>
         <q-btn
-          v-if="tab == 'ui' || tab == 'editor'"
           flat
           dense
           round
@@ -31,11 +30,11 @@
           data-cy="leftDrawer"
         />
 
-        <q-toolbar-title> Rainfall </q-toolbar-title>
+        <q-toolbar-title>Rainfall</q-toolbar-title>
 
         <q-space></q-space>
 
-        <locale-changer></locale-changer>
+        <!-- <locale-changer></locale-changer> -->
 
         <q-btn
           v-if="tab == 'ui' && selectedNodes.length == 1"
@@ -46,6 +45,16 @@
           @click="toggleRightDrawer"
           data-cy="rightDrawer"
         />
+
+        <!-- <q-btn
+          v-if="tab == 'execution'"
+          dense
+          flat
+          round
+          icon="refresh"
+          @click="refreshExecutions"
+          data-cy="rightDrawer"
+        /> -->
       </q-toolbar>
     </q-header>
 
@@ -57,10 +66,15 @@
       behavior="desktop"
       side="left"
     >
-      <node-collection v-if="tab == 'ui'"></node-collection>
+      <node-collection 
+        v-if="tab == 'ui'"
+      ></node-collection>
       <custom-node-collection
         v-else-if="tab == 'editor'"
       ></custom-node-collection>
+      <execution-collection
+        v-else-if="tab == 'execution'"
+      ></execution-collection>
     </q-drawer>
 
     <q-drawer
@@ -109,7 +123,7 @@
           <q-route-tab
             name="execution"
             icon="directions_run"
-            label="Execution"
+            label="Executions"
             :to="{ name: 'execution' }"
           />
           <q-route-tab
@@ -128,13 +142,15 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import LocaleChanger from 'components/LocaleChanger.vue';
 import NodeCollection from 'components/NodeCollection.vue';
 import CustomNodeCollection from 'components/custom/CustomNodeCollection.vue';
+import ExecutionCollection from 'components/execution/ExecutionCollection.vue'
 import ConfigFormComponent from 'components/ConfigFormComponent.vue';
 import { useCanvasStore } from 'stores/canvasStore';
 import { NodeInfo } from 'components/models';
+import { useMonitorStore } from '../stores/monitorStore'
 
+const monitorStore = useMonitorStore()
 const canvasStore = useCanvasStore();
 const leftDrawerOpen = ref(false);
 const rightDrawerOpen = ref(false);
@@ -149,6 +165,16 @@ const toggleLeftDrawer = () => {
 const toggleRightDrawer = () => {
   rightDrawerOpen.value = !rightDrawerOpen.value;
 };
+
+sessionStorage.clear()
+
+watch(
+  () => monitorStore.execution,
+  async () => {
+    if(leftDrawerOpen.value)
+      leftDrawerOpen.value = !leftDrawerOpen.value
+  }
+);
 
 watch(
   () => canvasStore.selectedNodes,

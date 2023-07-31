@@ -51,6 +51,7 @@ const repoStore = useRepoStore();
 
 const saveDataFlow = async () => {
   const config = getConfig();
+  config['ui'] = JSON.parse(sessionStorage.getItem('canvasState'))
   if (repoStore.currentRepo == null) {
     $q.notify({
       message:

@@ -18,23 +18,23 @@
 
 <template>
   <div ref="container">
-    <div class="column items-center">
-      <q-item-label header class="row justify-center">Execution</q-item-label>
-      <q-btn
-        class="q-pa-sm"
-        icon="play_arrow"
-        color="primary"
-        label="Execute"
-        @click="execute()"
-        data-cy="executionButton"
-      ></q-btn>
-      <div class="q-pt-md">Execution Log</div>
-      <q-checkbox
-        label="Autoscroll to end"
-        :toggle-indeterminate="false"
-        v-model="autoScroll"
-      ></q-checkbox>
-    </div>
+    <!-- <q-item v-if="monitorStore.execution == null">
+      <q-item-section>
+        <q-item-section>
+          Select an execution from the side menu...
+        </q-item-section>
+      </q-item-section>
+    </q-item> -->
+    <q-item class="badge" v-if="monitorStore.execution != null">
+      <q-item-section avatar>
+        <q-avatar :color="getStatusColor(monitorStore.execution.status)" size="25px">
+        </q-avatar>
+      </q-item-section>
+      <q-item-section>
+        <q-item-label>{{ monitorStore.execution.id }}</q-item-label>
+        <q-item-label caption lines="1">{{ monitorStore.execution.status }}</q-item-label>
+      </q-item-section>
+    </q-item>
 
     <q-input
       ref="input"
@@ -49,124 +49,55 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted, Ref, ref } from 'vue';
+import { Ref, ref, watch } from 'vue';
 import { QInput, useQuasar } from 'quasar';
-import {
-  destroyWebSocket,
-  getConfig,
-  getNodesRequirements,
-  getWebSocketURL,
-} from '../utils';
-import { useLogStore } from 'src/stores/logStore';
-import { api } from 'src/boot/axios';
-import { useCanvasStore } from 'src/stores/canvasStore';
-import { useConfigStore } from 'src/stores/configStore';
-import { onBeforeRouteLeave } from 'vue-router';
+import { useMonitorStore } from '../../stores/monitorStore'
 
-const $q = useQuasar();
 const container: Ref<Element> = ref(null);
 const input: Ref<QInput> = ref(null);
 const logText = ref('');
-const logStore = useLogStore();
+const monitorStore = useMonitorStore();
 const autoScroll = ref(true);
-let socket: WebSocket = null;
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (socket == null || socket.readyState == WebSocket.CLOSED) {
-    next();
-    return;
-  }
-  $q.dialog({
-    message: 'Are you sure you want to leave the page and stop the execution?',
-    cancel: true,
-  })
-    .onOk(() => {
-      destroyWebSocket(socket);
-      next();
-    })
-    .onCancel(() => next(false));
-});
+watch(
+  () => monitorStore.$state,
+  async (state) => {
+    logText.value = ''
+    if (state.execution){
+      state.execution.logs.forEach((log) => {        
+        log = log + (log.endsWith('\n') ? '' : '\n');
+        updateTextAndScroll(log);
+      })
+    }
+  },
+  { deep: true }
+);
 
 const updateTextAndScroll = (line: string) => {
   logText.value += line;
-
-  if (!autoScroll.value) {
-    return;
-  }
+  if (!autoScroll.value)
+    return
 
   container.value.scrollIntoView(false);
   input.value.getNativeElement().scrollIntoView(false);
 };
 
-const executionListener = (ev: MessageEvent<string>) => {
-  const data = ev.data;
-  logStore.executionLogLine = data;
-  const line = data + (data.endsWith('\n') ? '' : '\n');
-  updateTextAndScroll(line);
-  // TODO: manage ws exception message or check connection close code
-};
-
-const execute = async () => {
-  const canvasStore = useCanvasStore();
-  const configStore = useConfigStore();
-  const config = getConfig();
-
-  await api
-    .post<string[]>('/execution', {
-      libs: getNodesRequirements(),
-      ui_nodes: [...canvasStore.canvasNodes.values()],
-      ui_structures: Object.fromEntries([
-        ...configStore.nodeStructures.entries(),
-      ]),
-    })
-    .then((res) => {
-      $q.dialog({
-        title: 'Requirements',
-        message: 'What are the requirements?',
-        prompt: {
-          model: res.data.join('\n'),
-          isValid: (val) => {
-            return val.trim() != '';
-          },
-          type: 'textarea',
-          outlined: true,
-        },
-        cancel: true,
-      }).onOk((requirements: string) => {
-        $q.dialog({
-          title: 'Path of execution',
-          message: 'What is the path in which the script will run?',
-          prompt: {
-            model: '',
-            isValid: (val) => {
-              return val.trim() != '';
-            },
-            type: 'text',
-            outlined: true,
-          },
-          cancel: true,
-        }).onOk((path) => {
-          config['dependencies'] = requirements.split('\n');
-
-          socket = new WebSocket(getWebSocketURL() + '/execution');
-          socket.onopen = () => {
-            socket.onmessage = executionListener;
-            logText.value = '';
-            config['path'] = path;
-            socket.send(JSON.stringify(config));
-          };
-        });
-      });
-    })
-    .catch(() => {
-      $q.notify({
-        message: 'Error while determining requirements!',
-        type: 'negative',
-      });
-    });
-};
-
-onUnmounted(() => {
-  destroyWebSocket(socket);
-});
+const getStatusColor = (status: string): string => {
+  switch (status.toLowerCase()) {
+    case 'success':
+      return 'green-6';
+    case 'error':
+      return 'red-6';
+    case 'running':
+      return 'yellow-9';
+    default:
+      return 'grey';
+  }
+}
 </script>
+
+<style scoped>
+.badge {
+  padding-top: 15px;
+}
+</style>

@@ -110,15 +110,31 @@ import * as d3 from 'd3';
 import { event } from 'quasar';
 import { useCanvasStore } from 'src/stores/canvasStore';
 import { createExecutionEdge, createExecutionNode } from './models';
-import { useLogStore } from 'src/stores/logStore';
+import { useMonitorStore } from '../../stores/monitorStore'
+import { UIState } from '../d3/types';
+import { setUIState } from "../d3/utils";
 
 const canvasStore = useCanvasStore();
-const logStore = useLogStore();
+const monitorStore = useMonitorStore();
 const svgSize = 128;
 
 let d3elem: Element = null;
 let d3svg: d3.Selection<Element, unknown, null, undefined> = null;
 let d3g: d3.Selection<Element, unknown, null, undefined> = null;
+
+watch(
+  () => monitorStore.$state,
+  async (state) => {
+    if (state) {
+      setUIState(JSON.parse(state.execution.ui as string) as UIState)
+      await initSVG()
+      state.execution.logs.forEach(
+        (s) => executionListener(s)
+      )
+    }
+  },
+  { deep: true }
+);
 
 onMounted(() => {
   d3elem = document.getElementsByClassName('d3-svg')[0];
@@ -161,13 +177,6 @@ onMounted(() => {
 
 const handleNewLogLine = (line: string) => {
   const parts = line.split('|');
-  if (parts[0].startsWith('Request received')) {
-    d3g.selectAll('.mark').remove();
-    d3g.selectAll('.error').remove();
-  }
-  if (parts.length != 4) {
-    return;
-  }
 
   if (
     parts[1] == 'INFO' &&
@@ -233,7 +242,7 @@ const executionListener = (data: string) => {
   handleNewLogLine(line);
 };
 
-const initSVG = () => {
+const initSVG = async () => {
   d3g.selectAll('.node').remove();
   d3g.selectAll('.edge').remove();
   d3g.selectAll('.mark').remove();
@@ -251,14 +260,6 @@ const initSVG = () => {
   [...canvasStore.canvasEdges.values()].forEach((e) => {
     createExecutionEdge(d3g, e);
   });
-
-  watch(
-    () => logStore.executionLogLine,
-    (newVal) => {
-      executionListener(newVal);
-    },
-    { flush: 'sync' }
-  );
 };
 </script>
 

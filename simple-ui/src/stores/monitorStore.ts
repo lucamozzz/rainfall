@@ -17,9 +17,23 @@
  */
 
 import { defineStore } from 'pinia';
+import { ExecutionInfo } from '../components/models'
 
-export const useLogStore = defineStore('log', {
+
+export const useMonitorStore = defineStore('execStore', {
   state: () => ({
-    executionLogLine: null as string,
+    execution: null as ExecutionInfo,
   }),
+  actions: {
+    setExecution(execution: ExecutionInfo) {
+      if (this.execution == null || this.execution.id != execution.id) {
+        this.execution = execution;
+      }
+    },
+    addLog(log: string){
+      this.execution.logs.push(log)
+    }
+  },
+  getters: {
+  },
 });

@@ -49,30 +49,39 @@
       v-model="file"
       @update:model-value="loadFile(false)"
       data-cy="loadFromJSON"
-    ></q-file>
+      ></q-file>
     <div class="row justify-center q-gutter-md q-pt-md">
       <q-btn
         outline
         icon="file_upload"
-        label="LOAD UI"
+        label="UI"
         @click="filePicker.pickFiles()"
       />
       <q-btn
         outline
+        icon="file_upload"
+        label="SCRIPT"
+        @click="scriptPicker.pickFiles()"
+      />
+      <q-btn
+        round
+        class="q-pa-sm"
+        icon="play_arrow"
+        color="primary"
+        @click="execute()"
+        data-cy="executionButton"
+      ></q-btn>
+      <q-btn
+        outline
         icon="file_download"
-        label="SAVE UI"
+        label="UI"
         @click="saveUI()"
         data-cy="saveUI"
-      /><q-btn
-        outline
-        icon="file_upload"
-        label="LOAD FROM SCRIPT"
-        @click="scriptPicker.pickFiles()"
       />
       <q-btn
         outline
         icon="file_download"
-        label="SAVE SCRIPT"
+        label="SCRIPT"
         @click="saveScript()"
         data-cy="saveScript"
       />
@@ -81,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, Ref, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
 import * as d3 from 'd3';
 import {
   clearSelection,
@@ -97,12 +106,17 @@ import { useConfigStore } from 'src/stores/configStore';
 import { NodeInfo } from '../models';
 import { useQuasar, event, QFile } from 'quasar';
 import { useCanvasStore } from 'src/stores/canvasStore';
-import { D3_CONSTS, DataType, GenericCoords, PathElements } from './types';
+import { D3_CONSTS, DataType, GenericCoords, PathElements, UIState } from './types';
+import {
+  getConfig,
+  getNodesRequirements,
+} from '../utils';
 import {
   checkPorts,
   extractTranslateCoords,
   getNextNodeId,
   getUIState,
+  setUIState,
   isNameValid,
   loadUIFromScript,
   loadUIFromFile,
@@ -429,7 +443,10 @@ onMounted(() => {
     },
     { deep: true }
   );
-
+  if (sessionStorage.getItem('canvasState') != null) {
+    const uiState = JSON.parse(sessionStorage.getItem('canvasState') as string) as UIState;
+    setUIState(uiState)
+  }
   initSVG();
 });
 
@@ -523,6 +540,61 @@ const initSVG = () => {
   checkPorts(d3g);
 };
 
+const execute = async () => {
+  const canvasStore = useCanvasStore();
+  const configStore = useConfigStore();
+  const config = getConfig();
+
+  await api
+    .post<string[]>('/execution/requirements', {
+      libs: getNodesRequirements(),
+      ui_nodes: [...canvasStore.canvasNodes.values()],
+      ui_structures: Object.fromEntries([
+        ...configStore.nodeStructures.entries(),
+      ]),
+    })
+    .then((res) => {
+      $q.dialog({
+        title: 'Requirements',
+        message: 'What are the requirements?',
+        prompt: {
+          model: res.data.join('\n'),
+          isValid: (val) => {
+            return val.trim() != '';
+          },
+          type: 'textarea',
+          outlined: true,
+        },
+        cancel: true,
+      }).onOk((requirements: string) => {
+          config['dependencies'] = requirements.split('\n');
+          api.post<string[]>('/execution', {
+              config: JSON.stringify(config)
+            }).then(() => {
+              canvasStore.clearCanvasEdges();
+              canvasStore.clearCanvasNodes();
+              configStore.clearNodeConfigs();
+              router.push({ name: 'execution'})
+              $q.notify({
+                message: 'Execution successfully queued!',
+                type: 'positive',
+              });
+            }).catch(() => {
+              $q.notify({
+                message: 'Unable to queue execution!',
+                type: 'negative',
+              });
+            })
+      });
+    }).catch(() => {
+      $q.notify({
+        message: 'Error while determining requirements!',
+        type: 'negative',
+      });
+    });
+};
+
+
 const loadFile = async (isScript: boolean) => {
   if (isScript && (await loadUIFromScript(script.value))) {
     $q.notify({
@@ -566,6 +638,14 @@ const saveScript = async () => {
       });
     });
 };
+
+onBeforeUnmount(() => {
+    const canvasState = JSON.stringify(getUIState());
+    sessionStorage.setItem('canvasState', canvasState);
+    canvasStore.clearCanvasEdges();
+    canvasStore.clearCanvasNodes();
+    configStore.clearNodeConfigs();
+})
 </script>
 
 <style scoped>

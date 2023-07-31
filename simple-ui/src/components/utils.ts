@@ -93,25 +93,6 @@ export const getConfig = () => {
   return config;
 };
 
-export const getWebSocketURL = () => {
-  const url = new URL(
-    process.env.BACKEND_URL == ''
-      ? window.location.origin
-      : process.env.BACKEND_URL
-  );
-  const protocol = url.protocol == 'https:' ? 'wss://' : 'ws://';
-  return protocol + url.host + '/ws';
-};
-
-export const destroyWebSocket = (socket: WebSocket) => {
-  if (socket != null) {
-    socket.onmessage = null;
-    if (socket.readyState == WebSocket.OPEN) {
-      socket.close(1000);
-    }
-  }
-};
-
 export const downloadUI = (uiState: UIState) => {
   const status = exportFile('ui.json', JSON.stringify(uiState), {
     mimeType: 'application/json',
