@@ -1,0 +1,64 @@
+version: '3'
+
+services:
+
+  webapp:
+    build: .
+    image: rainfall
+    restart: always
+    ports:
+      - 5000:5000
+    depends_on:
+      - mongo
+      - rabbitmq
+    environment:
+      - MODE=PROD
+      - PORT=5000
+      - SERVER_ADDR=0.0.0.0
+      - DATABASE_URL=mongodb://mongo:27017/
+      - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
+
+  mongo:
+    image: mongo:latest
+    restart: always
+    ports:
+      - 27017:27017
+    healthcheck:
+      test: test $$(echo "rs.initiate().ok || rs.status().ok" | mongo -u mongo -p mongo --quiet) -eq 1
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
+    
+  mongosetup:
+    image: mongo
+    depends_on:
+      - mongo
+    volumes:
+      - .:/scripts
+    restart: "no"
+    entrypoint: [ "bash", "/scripts/mongo_setup.sh"]
+
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  worker:
+    build: .
+    image: rainfall
+    command: celery -A simple_backend.service.execution_service.celery worker --loglevel=info
+    restart: always
+    depends_on:
+      - mongo
+      - rabbitmq
+      - webapp
+    environment:
+      - DATABASE_URL=mongodb://mongo:27017/
+      - BROKER_URL=amqp://guest:guest@rabbitmq:5672/

@@ -27,6 +27,7 @@ RUN yarn build
 
 FROM python:3.9-slim AS backend
 
+ARG SSH_KEY
 ARG PORT=5000
 ENV PORT=${PORT}
 ENV MODE=PRODUCTION
