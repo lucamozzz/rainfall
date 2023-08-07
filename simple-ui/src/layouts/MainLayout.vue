@@ -34,8 +34,6 @@
 
         <q-space></q-space>
 
-        <!-- <locale-changer></locale-changer> -->
-
         <q-btn
           v-if="tab == 'ui' && selectedNodes.length == 1"
           dense
@@ -45,16 +43,6 @@
           @click="toggleRightDrawer"
           data-cy="rightDrawer"
         />
-
-        <!-- <q-btn
-          v-if="tab == 'execution'"
-          dense
-          flat
-          round
-          icon="refresh"
-          @click="refreshExecutions"
-          data-cy="rightDrawer"
-        /> -->
       </q-toolbar>
     </q-header>
 
@@ -141,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, provide } from 'vue';
 import NodeCollection from 'components/NodeCollection.vue';
 import CustomNodeCollection from 'components/custom/CustomNodeCollection.vue';
 import ExecutionCollection from 'components/execution/ExecutionCollection.vue'
@@ -157,6 +145,7 @@ const rightDrawerOpen = ref(false);
 const tab = ref('ui');
 const resetKey = ref(0);
 const selectedNodes = ref([] as NodeInfo[]);
+sessionStorage.clear()
 
 const toggleLeftDrawer = () => {
   leftDrawerOpen.value = !leftDrawerOpen.value;
@@ -165,8 +154,6 @@ const toggleLeftDrawer = () => {
 const toggleRightDrawer = () => {
   rightDrawerOpen.value = !rightDrawerOpen.value;
 };
-
-sessionStorage.clear()
 
 watch(
   () => monitorStore.execution,
@@ -196,4 +183,6 @@ watch(
     }
   }
 );
+
+provide('openLeftDrawer', () => leftDrawerOpen.value = true);
 </script>

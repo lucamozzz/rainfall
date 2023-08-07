@@ -21,93 +21,114 @@
     <q-list >
       <q-item v-for="execution in executionInfoArray" :key="execution.id" class="q-my-sm" clickable v-ripple @click="selectExecution(execution.id)">
         <q-item-section avatar>
-          <q-avatar :color="getStatusColor(execution.status)" size="20px">
+          <q-avatar :color="getStatusColor(execution.status)" :class="{ 'blink-animation': isExecutionRunning(execution.id) }" size="20px">
           </q-avatar>
         </q-item-section>
         <q-item-section>
-          <q-item-label>{{ execution.id }}</q-item-label>
+          <q-item-label>{{ execution.name }}</q-item-label>
           <q-item-label caption lines="1">{{ execution.status }}</q-item-label>
         </q-item-section>
-        <q-item-section top side>
-          <div class="text-grey-8 q-gutter-xs">
-            <q-btn class="gt-xs" size="12px" flat dense round icon="delete" @click.stop="deleteExecution(execution.id)" />
-          </div>
-        </q-item-section>
       </q-item>
-      <q-item v-if="executionInfoArray.length === 0">
-        <q-item-section>
+      <div v-if="executionInfoArray.length === 0">
+        <q-item>
           <q-item-section>
-            <q-btn color="primary" @click="() => router.push({ name: 'canvas' })">Create pipeline</q-btn>
+            <q-btn color="primary" @click="() => router.push({ name: 'canvas' })">Create new pipeline</q-btn>
           </q-item-section>
-        </q-item-section>
-      </q-item>
+        </q-item>
+        <q-item>
+          <q-item-section>
+            <q-btn color="primary" @click="() => router.push({ name: 'import_export' })">Load from repository</q-btn>
+          </q-item-section>
+        </q-item>
+      </div>
     </q-list>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { useQuasar } from 'quasar';
 import { api } from '../../boot/axios';
 import { ExecutionInfo } from '../models'
 import { useMonitorStore } from '../../stores/monitorStore'
-import { useQuasar } from 'quasar';
-import { useCanvasStore } from 'src/stores/canvasStore';
+import { useExecutionStore } from 'src/stores/executionStore';
+import { ref, onMounted, onUnmounted, inject, watch } from 'vue';
+import { getStatusColor } from '../utils';
 import { useRouter } from 'vue-router';
 
 const $q = useQuasar();
 const router = useRouter();
-const canvasStore = useCanvasStore()
+const executionStore = useExecutionStore()
 const monitorStore = useMonitorStore();
-let eventSource: EventSource
-let executionInfoArray = ref([])
-let executionInfoMap = new Map<string, string>()
+let executionEventSource: EventSource
+let monitorEventSource: EventSource
+let executionInfoArray = ref([] as ExecutionInfo[])
 
 onMounted(async () => {
   await getExecutions()
-  if (executionInfoArray.value.length != 0) {
-    await selectExecution(executionInfoArray.value[0].id)
-  }
+  openLeftDrawer()
 });
+
+let openLeftDrawer: () => void = inject('openLeftDrawer')
+
+watch(
+  () => monitorStore.$state,
+  async (state) => {
+    if (!state.execution){
+      openLeftDrawer()
+    }
+  },
+  { deep: true }
+);
+
+watch(
+  () => executionStore.$state,
+  async () => {
+    executionInfoArray.value = executionStore.getExecutionsArray()
+  },
+  { deep: true }
+);
+
+const isExecutionRunning = (executionId: string) => {
+  if (executionStore.executionsMap.get(executionId).status == 'Running' || executionStore.executionsMap.get(executionId).status == 'Pending')
+    return true
+  else return false
+}
 
 const getExecutions = async () => {
   await api
-    .get<ExecutionInfo[]>('/execution/statuses')
+    .get<ExecutionInfo[]>('/execution/info')
     .then((value) => {
-      executionInfoMap = value.data.reduce((map, obj) => {
-        map.set(obj.id, obj.status);
+      executionStore.executionsMap = value.data.reduce((map, obj) => {
+        map.set(obj.id, obj);
         return map;
-      }, new Map<string, string>());
-      executionInfoArray.value = getExecutionsArray()
+      }, new Map<string, ExecutionInfo>());
+      executionInfoArray.value = executionStore.getExecutionsArray()
     })
     .catch(() => {
       $q.notify({
-        message: 'Unable to load execution statuses!',
+        message: 'Unable to load executions!',
         type: 'negative',
       });
-    })
+    })    
 
-    eventSource = new EventSource(process.env.BACKEND_URL + "/api/v1/execution/watch");  
-    eventSource.onmessage = (event) => {
+    executionEventSource = new EventSource(process.env.BACKEND_URL + '/api/v1/execution/watch');  
+    executionEventSource.onmessage = (event) => {
       const executionUpdate: ExecutionInfo = JSON.parse(event.data)
-      executionInfoMap.set(executionUpdate.id, executionUpdate.status)
-      executionInfoArray.value = getExecutionsArray()
+      let executionInfo: ExecutionInfo = executionStore.executionsMap.get(executionUpdate.id)
+      if (executionInfo){
+        executionInfo.status = executionUpdate.status
+        executionStore.executionsMap.set(executionUpdate.id, executionInfo)
+      }
       if (monitorStore.execution && monitorStore.execution.id == executionUpdate.id) {
         monitorStore.execution.status = executionUpdate.status
       }
     };
-    eventSource.onerror = (error) => {
-      console.error("SSE error:", error);
-      eventSource.close()
+
+    executionEventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      executionEventSource.close()
     };
 };
-
-const getExecutionsArray = () => {
-  return Array.from(executionInfoMap.entries())
-        .map(([id, status]) => ({
-          id: id,
-          status: status,
-        })).reverse()
-}
 
 const selectExecution = async (executionId: string) => {
   await api
@@ -120,8 +141,8 @@ const selectExecution = async (executionId: string) => {
       })
     );
 
-  eventSource = new EventSource(process.env.BACKEND_URL + "/api/v1/execution/watch/" + executionId);  
-  eventSource.onmessage = (event) => {
+  monitorEventSource = new EventSource(process.env.BACKEND_URL + '/api/v1/execution/watch/' + executionId);
+  monitorEventSource.onmessage = (event) => {
     // TODO: fix API endpoint that returns string array
     let update: { id: string, logs: string | string[] } = JSON.parse(event.data)
     if (typeof update.logs === 'string')
@@ -130,47 +151,40 @@ const selectExecution = async (executionId: string) => {
       monitorStore.execution.logs.push(update.logs[0])
   };
   
-  // TODO: close connection when no content
-  eventSource.onerror = (error) => {
+  monitorEventSource.onerror = (error) => {
     // console.error("SSE error:", error);
-    eventSource.close()
+    monitorEventSource.close()
   };
 };
 
-const deleteExecution = (executionId: string) => {
-  api
-  .delete('/execution/' + executionId + '/info')
-  .then(() => {
-    canvasStore.clearCanvasEdges()
-    canvasStore.clearCanvasNodes()
-    executionInfoMap.delete(executionId)
-    executionInfoArray.value = getExecutionsArray()
-  })
-  .catch(() => {
-    $q.notify({
-      message: 'Unable to delete execution info!',
-      type: 'negative',
-    });
-  });
-}
-
-const getStatusColor = (status: string): string => {
-  switch (status.toLowerCase()) {
-    case 'success':
-      return 'green-6';
-    case 'error':
-      return 'red-6';
-    case 'running':
-      return 'yellow-9';
-    default:
-      return 'grey';
-  }
-}
-
 onUnmounted(() => {
-    eventSource.close()
+    if (executionEventSource)
+      executionEventSource.close()
+    if (monitorEventSource)
+      monitorEventSource.close()
     monitorStore.$reset()
   }
 );
 
 </script>
+
+
+<style>
+/* Definizione dell'animazione di lampeggio */
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Applica l'animazione di lampeggio alla classe .blink-animation */
+.blink-animation {
+  animation: blink 1s infinite;
+}
+</style>

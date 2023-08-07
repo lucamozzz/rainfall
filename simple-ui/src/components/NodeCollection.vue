@@ -119,12 +119,13 @@
 
 <script setup lang="ts">
 import { ref, Ref, nextTick, watch } from 'vue';
-import { QTree } from 'quasar';
+import { QTree, useQuasar } from 'quasar';
 import { api } from '../boot/axios';
 import { QTreeNode, SimpleNodeStructure } from './models';
 import { useConfigStore } from 'stores/configStore';
 
 // TODO: manage API call failure (e.g. show a 'Pull to refresh')
+const $q = useQuasar();
 const configStore = useConfigStore();
 const tree: Ref<QTree> = ref(null);
 enum ViewMode {
@@ -157,8 +158,11 @@ const getNodes = () => {
       configStore.setNodeStructures(value.data);
       tempCustomNodes.forEach((n) => configStore.addNodeStructure(n));
     })
-    .catch((error) => {
-      alert(error);
+    .catch(() => {
+      $q.notify({
+        message: 'Unable to load nodes!',
+        type: 'negative',
+      });
     });
 };
 
@@ -198,7 +202,7 @@ const organizeNodesByViewMode = () => {
   });
   const organizedTreeData = [...treeData.keys()].map((k) => ({
     // label: k,
-    label: k.split("\n")[0],
+    label: k.split('\n')[0],
     selectable: false,
     header: 'root',
     id: k,

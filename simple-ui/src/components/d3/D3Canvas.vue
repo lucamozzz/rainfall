@@ -122,7 +122,7 @@ import {
   loadUIFromFile,
 } from './utils';
 import { useRouter } from 'vue-router';
-import { downloadPythonScript, downloadUI, getNodesConfig } from '../utils';
+import { downloadPythonScript, downloadUI, getNodesConfig, clearCanvas } from '../utils';
 import { api } from 'src/boot/axios';
 
 const $q = useQuasar();
@@ -571,9 +571,7 @@ const execute = async () => {
           api.post<string[]>('/execution', {
               config: JSON.stringify(config)
             }).then(() => {
-              canvasStore.clearCanvasEdges();
-              canvasStore.clearCanvasNodes();
-              configStore.clearNodeConfigs();
+              clearCanvas()
               router.push({ name: 'execution'})
               $q.notify({
                 message: 'Execution successfully queued!',
@@ -642,9 +640,6 @@ const saveScript = async () => {
 onBeforeUnmount(() => {
     const canvasState = JSON.stringify(getUIState());
     sessionStorage.setItem('canvasState', canvasState);
-    canvasStore.clearCanvasEdges();
-    canvasStore.clearCanvasNodes();
-    configStore.clearNodeConfigs();
 })
 </script>
 

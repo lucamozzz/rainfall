@@ -83,6 +83,21 @@ export const getNodesRequirements = () => {
     );
 };
 
+export const getStatusColor = (status: string): string => {
+  switch (status.toLowerCase()) {
+    case 'success':
+      return 'green-6';
+    case 'error':
+      return 'red-6';
+    case 'running':
+      return 'primary'
+    case 'revoked':
+      return 'yellow-9';
+    default:
+      return 'grey';
+  }
+}
+
 export const getConfig = () => {
   const config: { [index: string]: unknown } = {};
   config['pipeline_uid'] = Math.floor(100000 * Math.random()).toString();
@@ -130,3 +145,12 @@ export const downloadPythonScript = (script: string) => {
     });
   }
 };
+
+
+export const clearCanvas = () => {
+  const canvasStore = useCanvasStore();
+  const configStore = useConfigStore();
+  canvasStore.clearCanvasEdges();
+  canvasStore.clearCanvasNodes();
+  configStore.clearNodeConfigs();
+}

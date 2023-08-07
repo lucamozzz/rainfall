@@ -19,19 +19,18 @@
 import { defineStore } from 'pinia';
 import { ExecutionInfo } from '../components/models'
 
-
-export const useMonitorStore = defineStore('monitorStore', {
+export const useExecutionStore = defineStore('executionStore', {
   state: () => ({
-    execution: null as ExecutionInfo,
+    executionsMap: null as Map<string, ExecutionInfo>,
   }),
   actions: {
-    setExecution(execution: ExecutionInfo) {
-      if (this.execution == null || this.execution.id != execution.id) {
-        this.execution = execution;
-      }
-    },
-    addLog(log: string){
-      this.execution.logs.push(log)
+    getExecutionsArray() {
+      return Array.from(this.executionsMap.entries())
+        .map(([id, execution]) => ({
+          id: id,
+          name: execution.name,
+          status: execution.status,
+        })).reverse()
     }
   },
   getters: {

@@ -112,12 +112,12 @@ import { useCanvasStore } from 'src/stores/canvasStore';
 import { createExecutionEdge, createExecutionNode } from './models';
 import { useMonitorStore } from '../../stores/monitorStore'
 import { UIState } from '../d3/types';
-import { setUIState } from "../d3/utils";
+import { setUIState } from '../d3/utils';
+import { clearCanvas } from '../utils';
 
 const canvasStore = useCanvasStore();
 const monitorStore = useMonitorStore();
 const svgSize = 128;
-
 let d3elem: Element = null;
 let d3svg: d3.Selection<Element, unknown, null, undefined> = null;
 let d3g: d3.Selection<Element, unknown, null, undefined> = null;
@@ -125,18 +125,23 @@ let d3g: d3.Selection<Element, unknown, null, undefined> = null;
 watch(
   () => monitorStore.$state,
   async (state) => {
-    if (state) {
+    if (state.execution) {
       setUIState(JSON.parse(state.execution.ui as string) as UIState)
       await initSVG()
       state.execution.logs.forEach(
         (s) => executionListener(s)
       )
+    } else {
+      clearCanvas();
+      initSVG()
     }
   },
   { deep: true }
-);
-
+  );
+  
 onMounted(() => {
+  clearCanvas();
+  
   d3elem = document.getElementsByClassName('d3-svg')[0];
   d3svg = d3.select(d3elem);
   d3g = d3svg.selectChild('.graphics');

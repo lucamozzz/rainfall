@@ -50,27 +50,28 @@ const $q = useQuasar();
 const repoStore = useRepoStore();
 
 const saveDataFlow = async () => {
-  const config = getConfig();
-  config['ui'] = JSON.parse(sessionStorage.getItem('canvasState'))
-  if (repoStore.currentRepo == null) {
+  const config: any = getConfig();
+  let canvasState = sessionStorage.getItem('canvasState')
+  if (repoStore.currentRepo == null || canvasState == null) {
     $q.notify({
       message:
-        'No default repository is selected! Mark a repository as default',
+      'Unable to save dataflow!',
       type: 'negative',
     });
     return;
   }
+  config['ui'] = JSON.parse(canvasState)
   config['repository'] = repoStore.currentRepo;
-
+  
+  
   await api
     .post('/config', config)
     .then((res) => {
       $q.notify({
         message:
           'Dataflow: ' +
-          res.data['id'] +
-          ' saved successfully to ' +
-          res.data['uri'],
+          res.data['_id'] +
+          ' saved successfully!',
         type: 'positive',
       });
     })

@@ -18,21 +18,23 @@
 
 <template>
   <div ref="container">
-    <!-- <q-item v-if="monitorStore.execution == null">
-      <q-item-section>
-        <q-item-section>
-          Select an execution from the side menu...
-        </q-item-section>
-      </q-item-section>
-    </q-item> -->
     <q-item class="badge" v-if="monitorStore.execution != null">
       <q-item-section avatar>
-        <q-avatar :color="getStatusColor(monitorStore.execution.status)" size="25px">
+        <q-avatar :color="getStatusColor(monitorStore.execution.status)" :class="{ 'blink-animation': isExecutionRunning() }"  size="25px">
         </q-avatar>
       </q-item-section>
       <q-item-section>
-        <q-item-label>{{ monitorStore.execution.id }}</q-item-label>
+        <q-item-label>{{ monitorStore.execution.name }}</q-item-label>
         <q-item-label caption lines="1">{{ monitorStore.execution.status }}</q-item-label>
+      </q-item-section>
+      <q-item-section top side>
+        <div class="text-grey-8 q-gutter-xs">
+          <q-btn class="gt-xs" size="16px" flat dense round icon="upload" @click.stop="reloadUI(monitorStore.execution.id)" />
+          <q-btn v-if="!isExecutionRunning()" class="gt-xs" size="16px" flat dense round icon="delete" @click.stop="deleteExecution(monitorStore.execution.id)" />
+          <q-btn v-else class="gt-xs" size="16px" flat dense round icon="stop" @click.stop="stopExecution(monitorStore.execution.id)" />
+        </div>
+        <div class="text-grey-8 q-gutter-xs">
+        </div>
       </q-item-section>
     </q-item>
 
@@ -49,15 +51,25 @@
 </template>
 
 <script setup lang="ts">
-import { Ref, ref, watch } from 'vue';
-import { QInput, useQuasar } from 'quasar';
+import { Ref, ref, watch, inject } from 'vue';
+import { QInput } from 'quasar';
 import { useMonitorStore } from '../../stores/monitorStore'
+import { api } from '../../boot/axios';
+import { useQuasar } from 'quasar';
+import { getStatusColor } from '../utils';
+import { useCanvasStore } from 'src/stores/canvasStore';
+import { useExecutionStore } from 'src/stores/executionStore';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
+const $q = useQuasar();
+const executionStore = useExecutionStore()
 const container: Ref<Element> = ref(null);
 const input: Ref<QInput> = ref(null);
 const logText = ref('');
 const monitorStore = useMonitorStore();
-const autoScroll = ref(true);
+const autoScroll = ref(false);
+let openLeftDrawer: () => void = inject('openLeftDrawer')
 
 watch(
   () => monitorStore.$state,
@@ -73,6 +85,55 @@ watch(
   { deep: true }
 );
 
+const isExecutionRunning = () => {
+  if (monitorStore.execution.status == 'Running' || monitorStore.execution.status == 'Pending')
+    return true
+  else return false
+}
+
+const reloadUI = async (executionId: string) => {
+  await api
+    .get<string>('/execution/' + executionId + '/info/ui')
+    .then((value) => {
+      sessionStorage.setItem('canvasState', value.data)
+      router.push({name: 'canvas'})
+    })
+    .catch(() => 
+      $q.notify({
+        message: 'Unable to load execution UI!',
+        type: 'negative',
+      })
+    );
+}
+
+const deleteExecution = async (executionId: string) => {
+  await api
+  .delete('/execution/' + executionId + '/info')
+  .then(() => {
+    openLeftDrawer()
+    monitorStore.$reset()
+    executionStore.executionsMap.delete(executionId)
+  })
+  .catch(() => {
+    $q.notify({
+      message: 'Unable to delete execution info!',
+      type: 'negative',
+    });
+  });
+}
+
+const stopExecution = async (executionId: string) => {
+  await api
+  .post('/execution/' + executionId + '/revoke')
+  .then()
+  .catch(() => {
+    $q.notify({
+      message: 'Unable to stop execution!',
+      type: 'negative',
+    });
+  });
+}
+
 const updateTextAndScroll = (line: string) => {
   logText.value += line;
   if (!autoScroll.value)
@@ -81,22 +142,27 @@ const updateTextAndScroll = (line: string) => {
   container.value.scrollIntoView(false);
   input.value.getNativeElement().scrollIntoView(false);
 };
-
-const getStatusColor = (status: string): string => {
-  switch (status.toLowerCase()) {
-    case 'success':
-      return 'green-6';
-    case 'error':
-      return 'red-6';
-    case 'running':
-      return 'yellow-9';
-    default:
-      return 'grey';
-  }
-}
 </script>
 
 <style scoped>
+/* Definizione dell'animazione di lampeggio */
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Applica l'animazione di lampeggio alla classe .blink-animation */
+.blink-animation {
+  animation: blink 1s infinite;
+}
+
 .badge {
   padding-top: 15px;
 }

@@ -91,12 +91,13 @@ export interface QTreeNode {
 }
 
 export interface Repository {
+  id: string;
   name: string;
-  type: string;
 }
 
 export interface ExecutionInfo {
   id: string;
+  name?: string;
   status?: string;
   logs?: string[];
   ui?: string;

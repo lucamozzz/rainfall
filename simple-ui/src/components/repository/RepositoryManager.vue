@@ -21,8 +21,8 @@
     <q-item-label header>Repositories</q-item-label>
 
     <q-item
-      v-for="[name, value] in repoStore.repos"
-      :key="name"
+      v-for="repo in repoStore.repos.values()"
+      :key="repo.id"
       data-cy="repository"
     >
       <q-item-section avatar top>
@@ -32,21 +32,18 @@
           icon="folder_open"
           label="Open"
           title="List repository content"
-          @click="openRepositoryDialog(name)"
+          @click="openRepositoryDialog(repo)"
           data-cy="openRepositoryDialog"
         />
       </q-item-section>
 
       <q-item-section top>
         <q-item-label lines="1">
-          <span class="text-weight-medium">{{ name }}</span>
-        </q-item-label>
-        <q-item-label caption lines="1">
-          {{ value.type }} repository
+          <span class="text-weight-medium">{{ repo.name }}</span>
         </q-item-label>
       </q-item-section>
 
-      <q-item-section v-if="repoStore.currentRepo == name" side top>
+      <q-item-section v-if="repoStore.currentRepo == repo.name" side top>
         <div>
           <q-icon size="24px" name="done"></q-icon>
           Use by default
@@ -61,7 +58,7 @@
             round
             icon="archive"
             title="Archive repository"
-            @click="deleteRepo(name, true)"
+            @click="archiveRepo(repo)"
             data-cy="archiveRepo"
           />
           <q-btn
@@ -71,18 +68,18 @@
             round
             icon="delete"
             title="Delete repository"
-            @click="deleteRepo(name, false)"
+            @click="deleteRepo(repo)"
             data-cy="deleteRepo"
           />
           <q-btn
-            v-if="repoStore.currentRepo != name"
+            v-if="repoStore.currentRepo != repo.name"
             size="12px"
             flat
             dense
             round
             icon="done"
             title="Mark as Default"
-            @click="markAsDefault(name)"
+            @click="markAsDefault(repo)"
             data-cy="markAsDefault"
           />
         </div>
@@ -96,8 +93,8 @@
     <q-item-label header>Archived Repositories</q-item-label>
 
     <q-item
-      v-for="[name, value] in repoStore.archivedRepos"
-      :key="name"
+      v-for="repo in repoStore.archivedRepos.values()"
+      :key="repo.id"
       data-cy="archivedRepository"
     >
       <q-item-section avatar top>
@@ -106,10 +103,7 @@
 
       <q-item-section top>
         <q-item-label lines="1">
-          <span class="text-weight-medium">{{ name }}</span>
-        </q-item-label>
-        <q-item-label caption lines="1">
-          {{ value.type }} repository
+          <span class="text-weight-medium">{{ repo.name }}</span>
         </q-item-label>
       </q-item-section>
 
@@ -122,7 +116,7 @@
             dense
             round
             icon="unarchive"
-            @click="unarchiveRepo(name)"
+            @click="unarchiveRepo(repo)"
             data-cy="unarchiveRepo"
           />
           <q-btn
@@ -132,7 +126,7 @@
             dense
             round
             icon="delete"
-            @click="deleteArchivedRepo(name)"
+            @click="deleteArchivedRepo(repo)"
             data-cy="deleteArchivedRepo"
           />
         </div>
@@ -155,16 +149,14 @@ const repoStore = useRepoStore();
 
 onMounted(async () => {
   await Promise.all([
-    api.get<string[]>('/repositories'),
-    api.get<string[]>('/repositories/archived'),
+    api.get<Repository[]>('/repositories'),
+    api.get<Repository[]>('/repositories/archived'),
   ])
     .then((res) => {
-      repoStore.repos = new Map<string, Repository>(
-        res[0].data.map((r) => [r, { name: r, type: 'local' }])
-      );
-      repoStore.archivedRepos = new Map<string, Repository>(
-        res[1].data.map((r) => [r, { name: r, type: 'local' }])
-      );
+      repoStore.repos = new Map<string, Repository>();
+      res[0].data.forEach((repo: Repository) => repoStore.repos.set(repo.id, repo));
+      repoStore.archivedRepos = new Map<string, Repository>();
+      res[1].data.forEach((repo: Repository) => repoStore.archivedRepos.set(repo.id, repo));
       if (repoStore.repos.size > 0) {
         repoStore.currentRepo = [...repoStore.repos.values()][0].name;
       }
@@ -191,7 +183,7 @@ const addRepo = () => {
     api
       .post('/repositories/' + repoName)
       .then(() => {
-        repoStore.repos.set(repoName, { name: repoName, type: 'local' });
+        repoStore.repos.set(repoName, { id: repoName, name: repoName });
         if (repoStore.repos.size == 1) {
           repoStore.currentRepo = [...repoStore.repos.values()][0].name;
         }
@@ -200,74 +192,81 @@ const addRepo = () => {
   });
 };
 
-const deleteRepo = (repoName: string, shallow: boolean) => {
+const deleteRepo = (repo: Repository) => {
   $q.dialog({
-    title: (shallow ? 'Archive' : 'Delete') + ' a repository',
+    title: 'Delete a repository',
     message:
-      'Are you sure you want to ' +
-      (shallow ? 'archive' : 'delete') +
-      ' the repository: ' +
-      repoName +
+      'Are you sure you want to delete the repository: ' +
+      repo.name +
       '?',
     cancel: true,
   }).onOk(() => {
     api
-      .delete('/repositories/' + repoName, {
-        params: {
-          shallow: shallow,
-        },
-      })
+      .delete('/repositories/' + repo.id)
       .then(() => {
-        repoStore.repos.delete(repoName);
+        repoStore.repos.delete(repo.id);
         if (repoStore.repos.size == 1) {
           repoStore.currentRepo = [...repoStore.repos.values()][0].name;
         }
         if (repoStore.repos.size == 0) {
           repoStore.currentRepo = null;
         }
-        if (shallow) {
-          repoStore.archivedRepos.set(repoName, {
-            name: repoName,
-            type: 'local',
-          });
-        }
       })
       .catch((error) => $q.notify({ message: error, type: 'negative' }));
   });
 };
 
-const deleteArchivedRepo = (repoName: string) => {
+const archiveRepo = (repo: Repository) => {
+  $q.dialog({
+    title: 'Archive a repository',
+    message:
+      'Are you sure you want to archive the repository: ' +
+      repo.name +
+      '?',
+    cancel: true,
+  }).onOk(() => {
+    api
+      .post('/repositories/archived/' + repo.id)
+      .then(() => {
+        repoStore.repos.delete(repo.id);
+        repoStore.archivedRepos.set(repo.id, repo);
+      })
+      .catch((error) => $q.notify({ message: error, type: 'negative' }));
+  });
+};
+
+const deleteArchivedRepo = (repo: Repository) => {
   $q.dialog({
     title: 'Delete an archived repository',
     message:
       'Are you sure you want to delete the archived repository: ' +
-      repoName +
+      repo.name +
       '?',
     cancel: true,
   }).onOk(() => {
     api
-      .delete('/repositories/archived/' + repoName)
+      .delete('/repositories/' + repo.id)
       .then(() => {
-        repoStore.archivedRepos.delete(repoName);
+        repoStore.archivedRepos.delete(repo.id);
       })
       .catch((error) => $q.notify({ message: error, type: 'negative' }));
   });
 };
 
-const unarchiveRepo = (repoName: string) => {
+const unarchiveRepo = (repo: Repository) => {
   $q.dialog({
     title: 'Unarchive an archived repository',
     message:
       'Are you sure you want to unarchive the archived repository: ' +
-      repoName +
+      repo.name +
       '?',
     cancel: true,
   }).onOk(() => {
     api
-      .post('/repositories/archived/' + repoName)
+      .post('/repositories/archived/' + repo.id)
       .then(() => {
-        repoStore.archivedRepos.delete(repoName);
-        repoStore.repos.set(repoName, { name: repoName, type: 'local' });
+        repoStore.archivedRepos.delete(repo.id);
+        repoStore.repos.set(repo.id, repo);
         if (repoStore.repos.size == 1) {
           repoStore.currentRepo = [...repoStore.repos.values()][0].name;
         }
@@ -276,34 +275,33 @@ const unarchiveRepo = (repoName: string) => {
   });
 };
 
-const markAsDefault = (repoName: string) => {
+const markAsDefault = (repo: Repository) => {
   $q.dialog({
     title: 'Confirm',
     message:
       'Are you sure you want to mark the repository: ' +
-      repoName +
+      repo.name +
       ' as default?',
     cancel: true,
   }).onOk(() => {
-    repoStore.currentRepo = repoName;
+    repoStore.currentRepo = repo.id;
   });
 };
 
-const openRepositoryDialog = async (repoName: string) => {
+const openRepositoryDialog = async (repo: Repository) => {
   await api
-    .get('/repositories/' + repoName)
+    .get('/repositories/' + repo.id)
     .then((res: AxiosResponse) => {
-      const dataflows: [string, number][] = res.data['content'];
-      dataflows.sort((a, b) => b[1] - a[1]);
+      const dataflows: [] = res.data;
       if (dataflows.length == 0) {
         $q.notify({
-          message: 'No dataflows available in the repository: ' + repoName,
+          message: 'No dataflows available in the repository: ' + repo.name,
           type: 'negative',
         });
       } else {
         $q.dialog({
           component: RepositoryDialog,
-          componentProps: { repoName, dataflows },
+          componentProps: { repo, dataflows },
         });
       }
     })

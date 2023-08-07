@@ -22,7 +22,7 @@
       class="q-pa-sm"
       style="display: flex; flex-direction: column; align-items: center"
     >
-      DataFlows in repository: {{ repoName }}
+      DataFlows in repository: {{ repo.name }}
       <q-scroll-area class="fit">
         <div class="q-pa-sm">
           <div v-for="n in 5" :key="n">Drawer {{ n }} / 50</div>
@@ -30,17 +30,14 @@
       </q-scroll-area>
       <q-card-section class="column items-center">
         <q-list bordered style="min-width: 500px">
-          <div v-for="[flow, modifiedTime] in copiedDataFlows" :key="flow">
+          <div v-for="flow in copiedDataFlows" :key="flow">
             <q-expansion-item
               group="flow"
               :label="flow"
-              :caption="`Last Modified: ${new Date(modifiedTime * 1000)}`"
               @before-show="loadDataflow(flow)"
               data-cy="dataflow"
             >
               <q-item-section avatar top style="align-items: center">
-                <q-icon name="account_tree" color="black" size="34px" />
-                Name: {{ flow }}
                 <span class="q-pa-sm q-gutter-sm">
                   <q-btn
                     :disable="
@@ -81,15 +78,6 @@
                   ></q-btn>
                 </span>
               </q-item-section>
-              <q-item-section side>
-                Metadata:
-                <br />
-                {{
-                  metadata.has(flow)
-                    ? metadata.get(flow).metadata
-                    : 'No metadata available'
-                }}
-              </q-item-section>
             </q-expansion-item>
             <q-separator />
           </div>
@@ -106,10 +94,11 @@ import { api } from 'src/boot/axios';
 import { AxiosError } from 'axios';
 import { downloadPythonScript, downloadUI } from '../utils';
 import { useRouter } from 'vue-router';
+import { Repository } from '../models';
 
 const props = defineProps<{
-  repoName: string;
-  dataflows: [string, number][];
+  repo: Repository;
+  dataflows: string[];
 }>();
 
 defineEmits(useDialogPluginComponent.emitsObject);
@@ -122,19 +111,14 @@ const copiedDataFlows = ref(props.dataflows.slice());
 
 interface DataFlowData {
   id: string;
-  path: string;
   script: string;
-  metadata: string;
   requirements: string;
   ui: string;
 }
 
 const loadDataflow = async (flow: string) => {
-  if (metadata.value.has(flow)) {
-    return;
-  }
   await api
-    .get<DataFlowData>(`repositories/${props.repoName}/dataflows/${flow}`)
+    .get(`repositories/${props.repo.id}/dataflows/${flow}`)
     .then((res) => {
       metadata.value.set(flow, res.data);
     })
@@ -162,7 +146,7 @@ const onDownloadScript = (flow: string) => {
 
 const onDeleteDataFlow = async (flow: string) => {
   await api
-    .delete<DataFlowData>(`repositories/${props.repoName}/dataflows/${flow}`)
+    .delete<DataFlowData>(`repositories/${props.repo.id}/dataflows/${flow}`)
     .then(() => {
       copiedDataFlows.value.splice(
         copiedDataFlows.value.findIndex(([name]) => name == flow),
