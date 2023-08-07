@@ -32,7 +32,7 @@ class ConfigResponse(BaseModel):
     url: str
 
 
-@router.post('', response_model=ConfigResponse)
+@router.post('')
 async def post_config(config: ConfigurationSchema):
     """
     Api used to create a zip file containing all the artifacts:
@@ -41,13 +41,9 @@ async def post_config(config: ConfigurationSchema):
         - UI configuration
         - metadata
     """
-
     script = config_service.generate_script(config.nodes)
-
-    zip_file = config_service.generate_artifacts(config.repository, script, config.dependencies, config.ui)
-
-    return ConfigResponse(id=zip_file.stem, path=str(zip_file),
-                          url=f"/repositories/{config.repository}/dataflows/{zip_file.stem}")
+    dataflow = config_service.generate_artifacts(config.repository, script, config.dependencies, config.ui)
+    return dataflow
 
 
 @router.post('/convert', response_model=str)

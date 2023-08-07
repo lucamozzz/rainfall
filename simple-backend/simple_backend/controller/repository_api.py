@@ -28,73 +28,58 @@ from simple_backend.service import repository_service as rs
 router = APIRouter()
 
 
-@router.get('', response_model=list[str])
+@router.get('', response_model=list[object])
 async def get_repositories():
-    """ Gets all the repositories within the output directory. """
+    """ Gets all the repositories. """
     return rs.get_repositories_names()
 
 
-@router.get('/archived', response_model=list[str])
+@router.get('/archived', response_model=list[object])
 async def get_archived_repositories():
-    """ Gets all the archived repositories within the output directory. """
+    """ Gets all the archived repositories. """
     return rs.get_archived_repositories_names()
 
 
-@router.get('/{repository}', responses={200: {"model": RepositoryGet}, 404: {"schema": BadRequestError}})
+@router.get('/{repository}')
 async def get_repository(repository: str):
     """ Gets the content of the repository. """
-    try:
-        content = rs.get_repository_content(repository)
-    except FileNotFoundError as e:
-        raise BadRequestError(e.__str__())
-
-    return RepositoryGet(repository=repository, path=str(config.BASE_OUTPUT_DIR / repository), content=content)
+    return rs.get_repository_content(repository)
 
 
-@router.post('/{repository}', responses={200: {"model": RepositoryPost}, 404: {"schema": BadRequestError}})
-async def create_repository(repository: str):
-    """ Creates a new repository within the output directory. """
-    try:
-        rs.create_repository(repository)
-    except FileExistsError:
-        raise BadRequestError(f"Repository '{repository}' already exists in {str(config.BASE_OUTPUT_DIR)}")
-
-    return RepositoryPost(repository=repository, path=str(config.BASE_OUTPUT_DIR / repository),
-                          uri=f"/repositories/{repository}")
-
-
-@router.delete('/{repository}', status_code=204, response_class=Response)
-async def delete_repository(repository: str, shallow: bool):
-    """ Delete a repository from the output directory. """
-    rs.delete_repository(repository, False, shallow)
+@router.post('/{repository_name}')
+async def create_repository(repository_name: str):
+    """ Creates a new repository. """
+    rs.create_repository(repository_name)
 
     return Response(content=None, status_code=204)
 
 
-@router.delete('/archived/{repository}', status_code=204, response_class=Response)
-async def delete_archived_repository(repository: str):
-    """ Delete an archived repository from the output directory. """
-    rs.delete_repository(repository, True, False)
+@router.delete('/{repository}', status_code=204, response_class=Response)
+async def delete_repository(repository: str):
+    """ Delete a repository. """
+    rs.delete_repository(repository)
 
     return Response(content=None, status_code=204)
 
 
 @router.post('/archived/{repository}', responses={200: {"model": RepositoryPost}, 404: {"schema": BadRequestError}})
-async def unarchive_repository(repository: str):
-    """ Unarchive an archived repository. """
-    try:
-        rs.unarchive_repository(repository)
-    except FileExistsError:
-        raise BadRequestError(f"Repository '{repository}' already exists in {str(config.BASE_OUTPUT_DIR)}")
-
-    return RepositoryPost(repository=repository, path=str(config.BASE_OUTPUT_DIR / repository),
-                          uri=f"/repositories/{repository}")
+async def toggle_repository_archiviation(repository: str):
+    """ Archive/unarchive a repository. """
+    return rs.toggle_repository_archiviation(repository)
 
 
-@router.get('/{repository}/dataflows/{id}', response_model=DataFlow)
+@router.get('/{repository}/dataflows/{id}')
 async def get_dataflow(repository: str, id: str):
     """ Gets the specified Dataflow from the repository. """
     return rs.get_dataflow_from_repository(repository, id)
+    
+
+@router.get('/{repository}/dataflows/{id}/{field}')
+def get_execution_status(id: str, field: str):
+    """
+    Api used to retrieve a field of a specific execution
+    """
+    return rs.get_dataflow_field(id, field)
 
 
 @router.delete('/{repository}/dataflows/{id}', status_code=204, response_class=Response)

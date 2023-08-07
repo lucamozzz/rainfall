@@ -15,21 +15,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  """
-
-from json import loads
-import asyncio
 from typing import List, Union
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter
 from fastapi.responses import Response
 from fastapi.requests import Request
-from starlette.responses import StreamingResponse
 from starlette.status import HTTP_200_OK
 from sse_starlette.sse import EventSourceResponse
 from simple_backend.schemas.nodes import UINode, CustomNodeStructure, NodeStructure
 from simple_backend.service.config_service import get_requirements, generate_script
 import simple_backend.service.execution_service as es
-from celery.worker.control import revoke
-from celery.states import ALL_STATES
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -40,40 +34,49 @@ MESSAGE_STREAM_RETRY_TIMEOUT = 15000  # milisecond
 router = APIRouter()
 
 @router.post('', status_code=200, response_class=Response)
-def execute(config: dict, background_tasks: BackgroundTasks) -> None:
+def execute(config: dict) -> None:
     """
     Api used to launch the execution of a dataflow
     """
     execution_id = es.create_execution_instance(config)
-    background_tasks.add_task(es.execute_dataflow.delay, execution_id)
-    # task_id = es.execute_dataflow.delay(execution_id)
-    # revoke(ALL_STATES, task_id=task_id, terminate=True)
-    return Response(status_code=HTTP_200_OK, background=background_tasks)
+    # background_tasks.add_task(es.execute_dataflow.delay, execution_id)
+    task_id = es.execute_dataflow.delay(execution_id)
+    es.set_execution_field(execution_id, 'celery_task_id', str(task_id))
+    return Response(status_code=HTTP_200_OK)
+
+
+@router.post('/{id}/revoke')
+def revoke_execution(id: str):
+    """
+    Api used to revoke the execution of a dataflow
+    """
+    es.revoke_execution(id)
+    return Response(status_code=HTTP_200_OK)
 
 
 @router.post('/requirements', response_model=List[str])
 def post_nodes_requirements(libs: List[str], ui_nodes: List[UINode],
                                   ui_structures: dict[str, Union[CustomNodeStructure, NodeStructure]]):
     """
-    Api used to retrieve the requirements
+    Api used to retrieve the execution requirements
     """
     return get_requirements(libs, ui_nodes, ui_structures)
     
 
-@router.get('/statuses')
+@router.get('/info')
 def get_executions():
     """
-    Api used to retrieve the status of all the executions
+    Api used to retrieve name and status of all the executions
     """
-    return es.get_all_executions_status()
+    return es.get_executions_info()
     
 
-@router.get('/{id}/status')
-def get_execution_status(id: str):
+@router.get('/{id}/info/{field}')
+def get_execution_status(id: str, field: str):
     """
-    Api used to retrieve the status of a specific execution
+    Api used to retrieve a field of a specific execution
     """
-    return es.get_execution_field(id, 'status')
+    return es.get_execution_field(id, field)
 
 
 @router.get('/{id}/info')
@@ -81,11 +84,13 @@ def get_execution_logs(id: str):
     """
     Api used to retrieve the info of a specific execution
     """
+    execution = es.get_execution_info(id)
     return {
         'id': id,
-        'status': es.get_execution_field(id, 'status'),
-        'logs': es.get_execution_field(id, 'logs'),
-        'ui': es.get_execution_field(id, 'ui'),
+        'status': execution['status'],
+        'name': execution['name'],
+        'logs': execution['logs'],
+        'ui': execution['ui'],
     }
 
 
@@ -97,24 +102,17 @@ def delete_execution_logs(id: str):
     return es.delete_execution_info(id)
 
 
-@router.get('/{id}/ui')
-def get_execution_logs(id: str):
-    """
-    Api used to retrieve the ui of a specific execution
-    """
-    return es.get_execution_field(id, 'ui')
-
-
 @router.get("/watch")
-async def sse_status_updates():
+async def watch_executions(request: Request):
+    """
+    Api used to receive updates on the executions
+    """
     return EventSourceResponse(content=es.watch_executions())
 
 
 @router.get("/watch/{id}")
-async def sse_logs_updates(id: str):
-    if es.is_execution_running(id):
-        return EventSourceResponse(content=es.watch_execution(id))
-    else:
-        return Response(status_code=204)
-    # else:
-    #     return Response(status_code=HTTP_200_OK, media_type="text/event-stream")
+async def watch_execution(id: str):
+    """
+    Api used to receive updates on a specific execution
+    """
+    return EventSourceResponse(content=es.watch_execution(id))

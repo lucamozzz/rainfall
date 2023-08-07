@@ -19,10 +19,18 @@
 import sys
 import shutil
 import zipfile
+import uuid
+import os
 from typing import List
+from pymongo import MongoClient
+from datetime import datetime
 from simple_backend import config
 from simple_backend.errors import BadRequestError
 from simple_backend.schemas.dataflow import DataFlow
+
+DATABASE_NAME='rainfall'
+REPOSITORIES_COLLECTION_NAME='repositories'
+DATAFLOWS_COLLECTION_NAME='dataflows'
 
 
 try:
@@ -35,75 +43,252 @@ except:
 
 def get_repositories_names() -> List[str]:
     """ Returns the immediate subdirectories names of the output dir. """
-    return [name.stem for name in config.BASE_OUTPUT_DIR.iterdir() if name.is_dir() and not name == config.ARCHIVE_DIR]
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        
+        filter = {"archived": False}
+        projection = {"_id": 1, "name": 1}
+        documents = list(collection.find(filter, projection))
+        repositories = [{"id": str(doc["_id"]), "name": doc["name"]} for doc in documents]
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
+        return repositories
 
 
 def get_archived_repositories_names() -> List[str]:
-    """ Returns the immediate subdirectories names of the archived output dir. """
-    return [name.stem for name in config.ARCHIVE_DIR.iterdir() if name.is_dir()]
+    """ Returns the immediate subdirectories names of the output dir. """
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        
+        filter = {"archived": True}
+        projection = {"_id": 1, "name": 1}
+        documents = list(collection.find(filter, projection))
+        repositories = [{"id": str(doc["_id"]), "name": doc["name"]} for doc in documents]
+        return repositories
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
 
 
-def get_repository_content(repository: str) -> List[list]:
-    """ Returns the content (only zip file names) and the last modified dates of the given repository. """
-    return [[name.stem, name.stat().st_mtime] for name in (config.BASE_OUTPUT_DIR / repository).iterdir()
-            if name.is_file() and name.suffix == ".zip"]
+def create_repository(repository_name: str) -> None:
+    repository_id = str(uuid.uuid4())
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    repository = {
+        "_id": repository_id,
+        "name": repository_name,
+        "created_at": current_time,
+        "dataflows": list(),
+        "archived": False,
+    }
+
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+
+        existing_repository = collection.find_one({"name": repository_name})
+        if existing_repository is None:
+            collection.insert_one(repository)
+        return repository_id
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
 
 
-def create_repository(repository: str) -> None:
-    (config.BASE_OUTPUT_DIR / repository).mkdir()
+def delete_repository(repository_id: str) -> None:
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        repository = collection.find_one({"_id": repository_id})
+        if repository:
+            for df in repository["dataflows"]:
+                delete_dataflow(repository_id, df)
+            collection.delete_one({"_id": repository_id})
+        return repository_id
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
 
 
-def delete_repository(repository: str, archived: bool, shallow: bool) -> None:
-    repo_path = (config.ARCHIVE_DIR if archived else config.BASE_OUTPUT_DIR) / repository
+def toggle_repository_archiviation(repository_id):
+    try:
+        client = MongoClient(os.environ.get("DATABASE_URL"))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        repository = collection.find_one({"_id": repository_id})
 
-    if not repo_path.is_dir():
-        raise BadRequestError(f"Repository '{repository}' does not exists!")
-
-    if shallow:
-        shutil.move(str(repo_path), config.ARCHIVE_DIR)
-    else:
-        shutil.rmtree(repo_path)
-
-
-def unarchive_repository(repository: str) -> None:
-    repo_path = config.ARCHIVE_DIR / repository
-
-    if not repo_path.is_dir():
-        raise BadRequestError(f"Repository '{repository}' does not exists!")
-
-    shutil.move(str(repo_path), config.BASE_OUTPUT_DIR)
-
-
-def get_dataflow_from_repository(repository: str, id: str) -> DataFlow:
-    repo_path = config.BASE_OUTPUT_DIR / repository
-
-    if not repo_path.exists() or not repo_path.is_dir():
-        raise BadRequestError(f"Repository {repository} does not exists!")
-
-    dataflow_path = repo_path / f"{id}.zip"
-
-    if not dataflow_path.exists() or not dataflow_path.is_file():
-        raise BadRequestError(f"Dataflow {id} does not exists!")
-
-    dataflow_path = str(dataflow_path)
-
-    with zipfile.ZipFile(dataflow_path, "r") as dataflow:
-        script = dataflow.read('script.py') if 'script.py' in dataflow.namelist() else None
-        metadata = dataflow.read('metadata.yml') if 'metadata.yml' in dataflow.namelist() else None
-        requirements = dataflow.read('requirements.txt') if 'requirements.txt' in dataflow.namelist() else None
-        ui = dataflow.read('ui.json') if 'ui.json' in dataflow.namelist() else None
-
-    return DataFlow(id=id, path=dataflow_path, script=script, metadata=metadata, requirements=requirements, ui=ui)
+        if repository:
+            flag = not repository["archived"]
+            print('repo set to: ' + str(flag))
+            collection.update_one({"_id": repository_id}, {"$set": {"archived": flag}})
+        else: 
+            raise BadRequestError(f"Repository does not exists!")
+        
+        return repository_id
+    except ConnectionError:
+        print("Connection to the database failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
 
 
-def delete_dataflow(repository: str, id: str) -> None:
-    repo_path = config.BASE_OUTPUT_DIR / repository
-    dataflow_path = repo_path / f"{id}.zip"
+def archive_repository(repository_id):
+    try:
+        client = MongoClient(os.environ.get("DATABASE_URL"))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        execution = collection.find_one({"_id": repository_id})
 
-    if not repo_path.is_dir():
-        raise BadRequestError(f"Repository {repository} does not exists!")
+        if execution:
+            collection.update_one({"_id": repository_id}, {"$set": {"archived": True}})
+        else: 
+            raise BadRequestError(f"Repository does not exists!")
+        
+    except ConnectionError:
+        print("Connection to the database failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
 
-    if not dataflow_path.exists() or not dataflow_path.is_file():
-        raise BadRequestError(f"Repository {repository} does not contain the dataflow '{id}'")
 
-    dataflow_path.unlink()
+def get_repository_content(repository_id: str) -> List[list]:
+    """
+    Method that stores the artifacts (script, requirements, GUI configuration, other metadata)
+    """
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        # Query the collection to retrieve the specific document
+        filter = {"_id": repository_id}
+        projection = {"dataflows": 1}
+        document = collection.find_one(filter, projection)
+
+        if document:
+            dataflows = document.get("dataflows", [])
+            return dataflows
+        else:
+            print("Document not found.")
+            return []
+
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
+
+
+def get_dataflow_from_repository(repository_id: str, dataflow_id: str):
+    """
+    Method that stores the artifacts (script, requirements, GUI configuration, other metadata)
+    """
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        filter = {"_id": repository_id}
+        projection = {"dataflows": 1}
+        repository = collection.find_one(filter, projection)
+
+        if repository:
+            collection = db[DATAFLOWS_COLLECTION_NAME]
+            dataflow = collection.find_one({"_id": dataflow_id})
+            print(dataflow)
+            return dataflow
+        else:
+            print("Document not found.")
+            return []
+
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
+
+
+def add_dataflow_to_repo(dataflow, repository) -> str:
+    """
+    Method that stores the artifacts (script, requirements, GUI configuration, other metadata)
+    """
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        repository = collection.find_one({"name": repository})
+        if repository:
+            collection.update_one({"_id": repository['_id']}, {"$push": {"dataflows": dataflow["_id"]}})
+            collection = db[DATAFLOWS_COLLECTION_NAME]
+            collection.insert_one(dataflow)
+
+        return dataflow["_id"]
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
+
+
+def delete_dataflow(repository_id: str, dataflow_id: str) -> str:
+    """
+    Method that stores the artifacts (script, requirements, GUI configuration, other metadata)
+    """
+    try:
+        client = MongoClient(os.getenv('DATABASE_URL'))
+        db = client[DATABASE_NAME]
+        collection = db[REPOSITORIES_COLLECTION_NAME]
+        repository = collection.find_one({"_id": repository_id})
+
+        if repository:
+            filter = {"_id": repository_id}
+            update = {"$pull": {"dataflows": dataflow_id}}
+            collection.update_one(filter, update)
+            collection = db[DATAFLOWS_COLLECTION_NAME]
+            collection.delete_one({"_id": dataflow_id})
+        return dataflow_id
+    except ConnectionError:
+        print("Connection to the MongoDB server failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
+
+
+def get_dataflow_field(execution_id, field_name):
+    try:
+        client = MongoClient(os.environ.get("DATABASE_URL"))
+        db = client[DATABASE_NAME]
+        collection = db[DATAFLOWS_COLLECTION_NAME]
+        execution = collection.find_one({"_id": execution_id}, {field_name: 1})
+
+        if execution:
+            return execution.get(field_name)
+
+    except ConnectionError:
+        print("Connection to the database failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()

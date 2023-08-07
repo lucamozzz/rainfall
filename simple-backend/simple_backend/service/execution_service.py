@@ -20,14 +20,16 @@ import uuid
 import os
 import json
 import subprocess
-import requests
-import time
 from json import loads
 from datetime import datetime
 from pymongo import MongoClient
+import randomname
 from celery import Celery
-
+from celery.worker.control import revoke
+from celery.states import STARTED
+from celery.contrib.abortable import AbortableTask
 from virtualenv import cli_run
+import shutil
 from simple_backend.errors import BadRequestError
 from simple_backend.schemas.nodes import ConfigurationSchema
 from simple_backend.service.config_service import generate_script
@@ -35,28 +37,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-BROKER_URL = os.environ.get("BROKER_URL")
-BROKER_USER = os.environ.get("BROKER_USER")
-BROKER_PASSWORD = os.environ.get("BROKER_PASSWORD")
-BROKER_MANAGEMENT_URL = os.environ.get("BROKER_MANAGEMENT_URL")
 PENDING = "Pending"
 RUNNING = "Running"
 SUCCESS = "Success"
 ERROR = "Error"
+REVOKED = "Revoked"
 EXECUTION_LOGS_QUEUE = 'logs'
 DATABASE_NAME='rainfall'
 EXECUTIONS_COLLECTION_NAME='executions'
 WORKER_EXECUTION_PATH='/tmp/executions'
 
 celery = Celery(__name__)
-celery.conf.broker_url = BROKER_URL
+celery.conf.broker_url = os.environ.get("BROKER_URL")
 celery.conf.result_backend = os.environ.get("DATABASE_URL")
 
 
-@celery.task(name="execute_dataflow", ignore_result=True)
-def execute_dataflow(execution_id: str):
+@celery.task(name="execute_dataflow", ignore_result=True, bind=True, base=AbortableTask)
+def execute_dataflow(self, execution_id: str):
+
+    def cleanup(path: str):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+
     execution = get_execution_instance(execution_id)
     if execution:
+        set_execution_field(execution_id, 'status', RUNNING)
         path = WORKER_EXECUTION_PATH + str(execution_id) + '/'
 
         if not os.path.isdir(path):
@@ -77,13 +82,19 @@ def execute_dataflow(execution_id: str):
             venv_scripts_loc = "bin"
         else:
             raise BadRequestError("unsupported OS")
+        
+        if self.is_aborted():
+            cleanup(path)
+            return 'Task aborted'
 
         os.chdir(path)
         pip_loc = os.path.join(venv_loc, venv_scripts_loc, 'pip')
         os.system(pip_loc + " install --upgrade pip")
         os.system(pip_loc + " install -r requirements.txt")
 
-        set_execution_field(execution_id, 'status', RUNNING)
+        if self.is_aborted():
+            cleanup(path)
+            return 'Task aborted'
 
         cmd = [os.path.join(venv_loc, venv_scripts_loc, "python"), "script.py"]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=path, universal_newlines=True, bufsize=1, text=True)
@@ -95,6 +106,9 @@ def execute_dataflow(execution_id: str):
             execution = collection.find_one({"_id": execution_id})
 
             while True:
+                if self.is_aborted():
+                    cleanup(path)
+                    return 'Task aborted'
                 line = process.stdout.readline()
                 if line == '' and process.poll() is not None:
                     break
@@ -111,24 +125,35 @@ def execute_dataflow(execution_id: str):
         except Exception as e:
             print(f"An error occurred: {str(e)}")
         finally:
+            cleanup(path)
             process.wait()
             client.close()
 
 
+def revoke_execution(execution_id: str):
+    task_id = get_execution_field(execution_id, 'celery_task_id')
+    task = execute_dataflow.AsyncResult(task_id)
+    task.abort()
+    set_execution_field(execution_id, 'status', REVOKED)
+
+
 def create_execution_instance(config):
-    execution_id = str(uuid.uuid4()) 
+    execution_id = str(uuid.uuid4())
+    execution_name = randomname.generate()
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     config: ConfigurationSchema = ConfigurationSchema.parse_obj(loads(config['config']))
     script = generate_script(config.nodes)
 
     execution = {
         "_id": execution_id,
-        "created_at": current_time,
+        "celery_task_id": None,
+        "name": execution_name,
         "status": PENDING,
         "logs": list(),
         "script": script,
         "requirements": "\n".join(config.dependencies),
-        "ui": config.ui.json(separators=(',', ':'))
+        "ui": config.ui.json(separators=(',', ':')),
+        "created_at": current_time,
     }
 
     try:
@@ -136,7 +161,6 @@ def create_execution_instance(config):
         db = client[DATABASE_NAME]
         collection = db[EXECUTIONS_COLLECTION_NAME]
         collection.insert_one(execution)
-        print("Dataflow execution succesfully queued.")
     except ConnectionError:
         print("Connection to the MongoDB server failed.")
     except Exception as e:
@@ -171,17 +195,33 @@ def is_execution_running(id: str):
         return True
 
 
-def get_all_executions_status():
+def get_executions_info():
     try:
         client = MongoClient(os.environ.get("DATABASE_URL"))
         db = client[DATABASE_NAME]
         collection = db[EXECUTIONS_COLLECTION_NAME]
         
-        projection = {"_id": 1, "status": 1}
+        projection = {"_id": 1, "status": 1, "name": 1}
         documents = list(collection.find({}, projection))
 
-        return [{"id": str(doc["_id"]), "status": doc["status"]} for doc in documents]
+        return [{"id": str(doc["_id"]), "status": doc["status"], "name": doc["name"]} for doc in documents]
 
+
+    except ConnectionError:
+        print("Connection to the database failed.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        client.close()
+
+
+def get_execution_info(execution_id):
+    try:
+        client = MongoClient(os.environ.get("DATABASE_URL"))
+        db = client[DATABASE_NAME]
+        collection = db[EXECUTIONS_COLLECTION_NAME]
+        execution = collection.find_one({"_id": execution_id})
+        return execution
 
     except ConnectionError:
         print("Connection to the database failed.")
@@ -219,7 +259,6 @@ def set_execution_field(execution_id, field_name, field_value):
         if execution:
             # Update the field with the new value
             collection.update_one({"_id": execution_id}, {"$set": {field_name: field_value}})
-            print(f"Document with ID {execution_id} updated successfully.")
         
     except ConnectionError:
         print("Connection to the database failed.")
@@ -253,10 +292,10 @@ def watch_executions():
         pipeline = [{'$match': {'operationType': 'update'}}]
         with collection.watch(pipeline) as stream:
             for change in stream:
-                updated_id = str(change["documentKey"]["_id"])
+                pipeline_id = str(change["documentKey"]["_id"])
                 updated_status = change["updateDescription"]["updatedFields"].get('status')
                 if updated_status is not None:
-                    data = {"id": updated_id, "status": updated_status}
+                    data = {"id": pipeline_id, "status": updated_status}
                     event_data = f"{json.dumps(data)}"
                     yield event_data
     
