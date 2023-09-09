@@ -19,13 +19,16 @@
 import ast
 import re
 import sys
+import os
 from typing import List, Optional
 import requests
 from simple_backend.errors import CustomNodeConfigurationError, NodesRetrievalError
 from simple_backend.schemas.nodes import CustomNode, NodeStructure, CustomNodeIOParams
 
+RAIN_STRUCTURE_URL=os.getenv('RAIN_STRUCTURE_URL', 'https://firebasestorage.googleapis.com/v0/b/rainfall-e8e57.appspot.com/o/rain_structure.json?alt=media')
+
 try:
-    nodes_request = requests.get(url="https://firebasestorage.googleapis.com/v0/b/rainfall-e8e57.appspot.com/o/rain_structure.json?alt=media")
+    nodes_request = requests.get(url=RAIN_STRUCTURE_URL)
     if nodes_request.status_code != 200:
         raise NodesRetrievalError(f"Nodes request failed: {nodes_request.reason}")
     rain_structure = nodes_request.json()

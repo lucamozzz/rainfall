@@ -38,6 +38,7 @@ from simple_backend import config
 
 DATABASE_NAME='rainfall'
 EXECUTIONS_COLLECTION_NAME='repositories'
+RAIN_REPOSITORY_URL=os.getenv('RAIN_REPO_URL', 'git+ssh://git@bitbucket.org/proslabteam/rain@master#egg=rain')
 
 
 def check_dag(nodes):
@@ -76,7 +77,7 @@ def get_requirements(libs: List[str], ui_nodes: List[UINode],
     Method that returns the Python dependencies, useful to re-create the environment of a given Dataflow
     """
     libs = [lib.lower() for lib in libs]
-    requirements = set(["git+ssh://git@bitbucket.org/proslabteam/rain@master#egg=rain"])
+    requirements = set([RAIN_REPOSITORY_URL])
 
     # TODO: manage dependencies' versions and avoid duplicates
     #       e.g. pandas and pandas~=1.3.0 shouldn't be two different dependencies

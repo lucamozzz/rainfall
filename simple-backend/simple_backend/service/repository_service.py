@@ -17,8 +17,6 @@
  """
 
 import sys
-import shutil
-import zipfile
 import uuid
 import os
 from typing import List
@@ -26,7 +24,6 @@ from pymongo import MongoClient
 from datetime import datetime
 from simple_backend import config
 from simple_backend.errors import BadRequestError
-from simple_backend.schemas.dataflow import DataFlow
 
 DATABASE_NAME='rainfall'
 REPOSITORIES_COLLECTION_NAME='repositories'
