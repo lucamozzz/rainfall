@@ -21,6 +21,7 @@
     <q-header elevated bordered>
       <q-toolbar>
         <q-btn
+          v-if="tab != 'import_export'"
           flat
           dense
           round

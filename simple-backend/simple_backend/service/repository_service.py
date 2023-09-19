@@ -49,13 +49,13 @@ def get_repositories_names() -> List[str]:
         projection = {"_id": 1, "name": 1}
         documents = list(collection.find(filter, projection))
         repositories = [{"id": str(doc["_id"]), "name": doc["name"]} for doc in documents]
+        return repositories
     except ConnectionError:
         print("Connection to the MongoDB server failed.")
     except Exception as e:
         print(f"An error occurred: {str(e)}")
     finally:
         client.close()
-        return repositories
 
 
 def get_archived_repositories_names() -> List[str]:

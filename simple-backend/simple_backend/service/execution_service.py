@@ -25,8 +25,6 @@ from datetime import datetime
 from pymongo import MongoClient
 import randomname
 from celery import Celery
-from celery.worker.control import revoke
-from celery.states import STARTED
 from celery.contrib.abortable import AbortableTask
 from virtualenv import cli_run
 import shutil

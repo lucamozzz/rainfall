@@ -145,7 +145,6 @@ const updateTextAndScroll = (line: string) => {
 </script>
 
 <style scoped>
-/* Definizione dell'animazione di lampeggio */
 @keyframes blink {
   0% {
     opacity: 1;
@@ -158,7 +157,6 @@ const updateTextAndScroll = (line: string) => {
   }
 }
 
-/* Applica l'animazione di lampeggio alla classe .blink-animation */
 .blink-animation {
   animation: blink 1s infinite;
 }

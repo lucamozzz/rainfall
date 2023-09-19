@@ -28,8 +28,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-MESSAGE_STREAM_DELAY = 1  # second
-MESSAGE_STREAM_RETRY_TIMEOUT = 15000  # milisecond
+MESSAGE_STREAM_DELAY = 1
+MESSAGE_STREAM_RETRY_TIMEOUT = 15000
 
 router = APIRouter()
 
