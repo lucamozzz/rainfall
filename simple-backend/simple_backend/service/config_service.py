@@ -38,7 +38,7 @@ from simple_backend import config
 
 DATABASE_NAME='rainfall'
 EXECUTIONS_COLLECTION_NAME='repositories'
-RAIN_REPOSITORY_URL=os.getenv('RAIN_REPO_URL', 'git+ssh://git@bitbucket.org/proslabteam/rain@master#egg=rain')
+RAIN_REPOSITORY_URL=os.getenv('RAIN_REPOSITORY_URL')
 
 
 def check_dag(nodes):
