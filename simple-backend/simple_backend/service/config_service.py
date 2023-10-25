@@ -22,7 +22,6 @@ import zipfile
 import yaml
 import uuid
 import os
-from pymongo import MongoClient
 from datetime import datetime
 from pathlib import Path
 from typing import List, Union
@@ -77,7 +76,8 @@ def get_requirements(libs: List[str], ui_nodes: List[UINode],
     Method that returns the Python dependencies, useful to re-create the environment of a given Dataflow
     """
     libs = [lib.lower() for lib in libs]
-    requirements = set([RAIN_REPOSITORY_URL])
+    # requirements = set([RAIN_REPOSITORY_URL])
+    requirements = set(["git+ssh://git@bitbucket.org/proslabteam/rain@ingka/prod#egg=rain"])
 
     # TODO: manage dependencies' versions and avoid duplicates
     #       e.g. pandas and pandas~=1.3.0 shouldn't be two different dependencies

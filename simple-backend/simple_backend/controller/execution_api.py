@@ -22,7 +22,7 @@ from fastapi.requests import Request
 from starlette.status import HTTP_200_OK
 from sse_starlette.sse import EventSourceResponse
 from simple_backend.schemas.nodes import UINode, CustomNodeStructure, NodeStructure
-from simple_backend.service.config_service import get_requirements, generate_script
+from simple_backend.service.config_service import get_requirements
 import simple_backend.service.execution_service as es
 from dotenv import load_dotenv
 load_dotenv()
@@ -39,7 +39,6 @@ def execute(config: dict) -> None:
     Api used to launch the execution of a dataflow
     """
     execution_id = es.create_execution_instance(config)
-    # background_tasks.add_task(es.execute_dataflow.delay, execution_id)
     task_id = es.execute_dataflow.delay(execution_id)
     es.set_execution_field(execution_id, 'celery_task_id', str(task_id))
     return Response(status_code=HTTP_200_OK)
@@ -68,7 +67,7 @@ def get_executions():
     """
     Api used to retrieve name and status of all the executions
     """
-    return es.get_executions_info()
+    return es.get_all_executions_status()
     
 
 @router.get('/{id}/info/{field}')
@@ -84,7 +83,7 @@ def get_execution_logs(id: str):
     """
     Api used to retrieve the info of a specific execution
     """
-    execution = es.get_execution_info(id)
+    execution = es.get_execution_instance(id)
     return {
         'id': id,
         'status': execution['status'],
@@ -99,7 +98,7 @@ def delete_execution_logs(id: str):
     """
     Api used to retrieve the info of a specific execution
     """
-    return es.delete_execution_info(id)
+    return es.delete_execution_instance(id)
 
 
 @router.get("/watch")
@@ -107,7 +106,10 @@ async def watch_executions(request: Request):
     """
     Api used to receive updates on the executions
     """
-    return EventSourceResponse(content=es.watch_executions())
+    # TODO: fix this
+    from simple_backend.service.database_service import get_database
+    db = get_database()
+    return EventSourceResponse(content=db.watch_executions())
 
 
 @router.get("/watch/{id}")
@@ -115,4 +117,7 @@ async def watch_execution(id: str):
     """
     Api used to receive updates on a specific execution
     """
-    return EventSourceResponse(content=es.watch_execution(id))
+    # TODO: fix this
+    from simple_backend.service.database_service import get_database
+    db = get_database()
+    return EventSourceResponse(content=db.watch_execution(id))

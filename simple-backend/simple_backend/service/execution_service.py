@@ -18,11 +18,9 @@
 
 import uuid
 import os
-import json
 import subprocess
-from json import loads
+from json import loads, dumps
 from datetime import datetime
-from pymongo import MongoClient
 import randomname
 from celery import Celery
 from celery.contrib.abortable import AbortableTask
@@ -30,6 +28,7 @@ from virtualenv import cli_run
 import shutil
 from simple_backend.errors import BadRequestError
 from simple_backend.schemas.nodes import ConfigurationSchema
+from simple_backend.service.database_service import get_database
 from simple_backend.service.config_service import generate_script
 from dotenv import load_dotenv
 load_dotenv()
@@ -40,19 +39,18 @@ RUNNING = "Running"
 SUCCESS = "Success"
 ERROR = "Error"
 REVOKED = "Revoked"
-EXECUTION_LOGS_QUEUE = 'logs'
 DATABASE_NAME='rainfall'
-EXECUTIONS_COLLECTION_NAME='executions'
+EXECUTIONS_COLLECTION_ID='executions'
 WORKER_EXECUTION_PATH='/tmp/executions'
 
 celery = Celery(__name__)
 celery.conf.broker_url = os.environ.get("BROKER_URL")
-celery.conf.result_backend = os.environ.get("DATABASE_URL")
+celery.conf.result_backend = os.environ.get("MONGODB_URL")
+db = get_database()
 
 
 @celery.task(name="execute_dataflow", ignore_result=True, bind=True, base=AbortableTask)
 def execute_dataflow(self, execution_id: str):
-
     def cleanup(path: str):
         if os.path.isdir(path):
             shutil.rmtree(path)
@@ -97,35 +95,23 @@ def execute_dataflow(self, execution_id: str):
         cmd = [os.path.join(venv_loc, venv_scripts_loc, "python"), "script.py"]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=path, universal_newlines=True, bufsize=1, text=True)
 
-        try:
-            client = MongoClient(os.environ.get("DATABASE_URL"))
-            db = client[DATABASE_NAME]
-            collection = db[EXECUTIONS_COLLECTION_NAME]
-            execution = collection.find_one({"_id": execution_id})
+        while True:
+            if self.is_aborted():
+                cleanup(path)
+                return 'Task aborted'
+            line = process.stdout.readline()
+            if line == '' and process.poll() is not None:
+                break
+            status = line.strip().split('|')[1]
+            update_execution_field(execution_id, 'logs', line.strip())
 
-            while True:
-                if self.is_aborted():
-                    cleanup(path)
-                    return 'Task aborted'
-                line = process.stdout.readline()
-                if line == '' and process.poll() is not None:
-                    break
-                status = line.strip().split('|')[1]
-                collection.update_one({"_id": execution_id}, {"$push": {"logs": line.strip()}})
+        if status == 'SUCCESS':
+            set_execution_field(execution_id, 'status', SUCCESS)
+        else:
+            set_execution_field(execution_id, 'status', ERROR)
 
-            if status == 'SUCCESS':
-                set_execution_field(execution_id, 'status', SUCCESS)
-            else:
-                set_execution_field(execution_id, 'status', ERROR)
-            
-        except ConnectionError:
-            print("Connection to the database failed.")
-        except Exception as e:
-            print(f"An error occurred: {str(e)}")
-        finally:
-            cleanup(path)
-            process.wait()
-            client.close()
+        cleanup(path)
+        process.wait()
 
 
 def revoke_execution(execution_id: str):
@@ -141,7 +127,6 @@ def create_execution_instance(config):
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     config: ConfigurationSchema = ConfigurationSchema.parse_obj(loads(config['config']))
     script = generate_script(config.nodes)
-
     execution = {
         "_id": execution_id,
         "celery_task_id": None,
@@ -153,181 +138,66 @@ def create_execution_instance(config):
         "ui": config.ui.json(separators=(',', ':')),
         "created_at": current_time,
     }
-
-    try:
-        client = MongoClient(os.getenv('DATABASE_URL'))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        collection.insert_one(execution)
-    except ConnectionError:
-        print("Connection to the MongoDB server failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
-        return execution_id
+    db.create_document(EXECUTIONS_COLLECTION_ID, execution)
+    return execution_id
 
 
 def get_execution_instance(execution_id: str):
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        execution = collection.find_one({"_id": execution_id})
-        if execution:
-            return execution
-        
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
+    return db.get_document(EXECUTIONS_COLLECTION_ID, {"_id": execution_id})
 
 
-def is_execution_running(id: str):
-    status: str = get_execution_field(id, 'status')
-    if status == 'Success' or status == 'Error':
-        return False
-    else:
-        return True
+def delete_execution_instance(execution_id: str):
+    return db.delete_document(EXECUTIONS_COLLECTION_ID, execution_id)
 
 
-def get_executions_info():
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        
-        projection = {"_id": 1, "status": 1, "name": 1}
-        documents = list(collection.find({}, projection))
-
-        return [{"id": str(doc["_id"]), "status": doc["status"], "name": doc["name"]} for doc in documents]
+def get_execution_field(execution_id: str, field_name: str):
+    return db.get_document_field(EXECUTIONS_COLLECTION_ID, execution_id, field_name)
 
 
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
+def set_execution_field(execution_id: str, field_name: str, field_value: str):
+    db.set_document_field(EXECUTIONS_COLLECTION_ID, execution_id, field_name, field_value)
 
 
-def get_execution_info(execution_id):
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        execution = collection.find_one({"_id": execution_id})
-        return execution
-
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
+def update_execution_field(execution_id: str, field_name: str, field_value: str):
+    db.push_document_array_field(EXECUTIONS_COLLECTION_ID, execution_id, field_name, field_value)
 
 
-def get_execution_field(execution_id, field_name):
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        execution = collection.find_one({"_id": execution_id}, {field_name: 1})
-
-        if execution:
-            return execution.get(field_name)
-
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
-
-
-def set_execution_field(execution_id, field_name, field_value):
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        execution = collection.find_one({"_id": execution_id})
-
-        if execution:
-            # Update the field with the new value
-            collection.update_one({"_id": execution_id}, {"$set": {field_name: field_value}})
-        
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
-
-
-def delete_execution_info(execution_id):
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        collection.delete_one({"_id": execution_id})
-        
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
+def get_all_executions_status():
+    return db.get_all_documents_fields(EXECUTIONS_COLLECTION_ID, {"_id": 1, "status": 1, "name": 1})
 
 
 def watch_executions():
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-
-        pipeline = [{'$match': {'operationType': 'update'}}]
-        with collection.watch(pipeline) as stream:
-            for change in stream:
-                pipeline_id = str(change["documentKey"]["_id"])
-                updated_status = change["updateDescription"]["updatedFields"].get('status')
-                if updated_status is not None:
-                    data = {"id": pipeline_id, "status": updated_status}
-                    event_data = f"{json.dumps(data)}"
-                    yield event_data
-    
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
+    return db.watch_executions()
 
 
-def watch_execution(id: str):
-    try:
-        client = MongoClient(os.environ.get("DATABASE_URL"))
-        db = client[DATABASE_NAME]
-        collection = db[EXECUTIONS_COLLECTION_NAME]
-        pipeline = [{'$match': {'operationType': 'update'}}]
-        with collection.watch(pipeline) as stream:
-            for change in stream:
-                execution_update = change["updateDescription"]["updatedFields"]
-                if 'status' in execution_update:
-                    if execution_update['status'] != 'Running':
-                        data = {"id": id, "status": execution_update['status']}
-                        event_data = f"data: {json.dumps(data)}\n"
-                        return event_data
-                else:
-                    logs_values = [value for key, value in execution_update.items() if "logs" in key]
-                    data = {"id": id, "logs": logs_values[0]}
-                    event_data = f"{json.dumps(data)}"
-                    yield event_data
+def watch_executions(execution_id: str):
+    return db.watch_execution(execution_id)
 
-    except ConnectionError:
-        print("Connection to the database failed.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-        client.close()
+
+# TODO: fix this
+# def watch_execution(execution_id: str):
+#     def update_function(item_update):
+#         if 'status' in item_update:
+#             if item_update['status'] != 'Running':
+#                 data = {"id": execution_id, "status": item_update['status']}
+#                 event_data = f"data: {dumps(data)}\n"
+#                 return event_data
+#         else:
+#             logs_values = [value for key, value in item_update.items() if "logs" in key]
+#             data = {"id": execution_id, "logs": logs_values[0]}
+#             event_data = f"{dumps(data)}"
+#             yield event_data
+
+#     yield db.watch_item(EXECUTIONS_COLLECTION_ID, update_function)
+
+
+# TODO: fix this
+# def watch_executions():
+#     def update_function(item_update, pipeline_id):
+#         updated_status = item_update.get('status')
+#         if updated_status is not None:
+#             data = {"id": pipeline_id, "status": updated_status}
+#             event_data = f"{dumps(data)}"
+#             yield event_data
+
+#     yield db.watch_items(EXECUTIONS_COLLECTION_ID, update_function)

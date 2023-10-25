@@ -22,7 +22,7 @@ from simple_backend import config
 from simple_backend.errors import BadRequestError
 from simple_backend.schemas.dataflow import DataFlow
 from simple_backend.schemas.repository_schemas import RepositoryGet, RepositoryPost
-from simple_backend.service import repository_service as rs
+import simple_backend.service.repository_service as rs
 
 
 router = APIRouter()
@@ -50,7 +50,6 @@ async def get_repository(repository: str):
 async def create_repository(repository_name: str):
     """ Creates a new repository. """
     rs.create_repository(repository_name)
-
     return Response(content=None, status_code=204)
 
 
@@ -58,7 +57,6 @@ async def create_repository(repository_name: str):
 async def delete_repository(repository: str):
     """ Delete a repository. """
     rs.delete_repository(repository)
-
     return Response(content=None, status_code=204)
 
 
