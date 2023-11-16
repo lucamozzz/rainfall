@@ -91,7 +91,7 @@ def share_repository(repository_id: str, receiver_id: str):
 
 
 # TODO: check if repo owner, check if receiver exists
-def unshare_repository(repository_id: str, receiver_id: str, user):
+def unshare_repository(repository_id: str, receiver_id: str):
     db.pull_document_array_field(REPOSITORIES_COLLECTION_NAME, repository_id, "users", receiver_id)
 
 

@@ -68,9 +68,9 @@ async def share_repository(repository_id: str, receiver_id: str):
 
 
 @router.post('/{repository_id}/unshare/{receiver_id}')
-async def unshare_repository(repository_id: str, receiver_id: str, user = Depends(get_current_user)):
+async def unshare_repository(repository_id: str, receiver_id: str):
     """ Unshares a repository. """
-    rs.unshare_repository(repository_id, receiver_id, user)
+    rs.unshare_repository(repository_id, receiver_id)
     return Response(content=None, status_code=204)
 
 

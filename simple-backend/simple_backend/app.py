@@ -38,6 +38,7 @@ def create_app():
         allow_origins=["http://localhost:7000"] if app.debug else [],
         allow_credentials=True,
         allow_methods=["*"],
+        allow_headers=["Authorization"]
     )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
     app.include_router(initialize_api_routes())

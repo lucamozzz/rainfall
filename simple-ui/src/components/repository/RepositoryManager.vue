@@ -79,6 +79,7 @@
             round
             icon="delete"
             title="Delete repository"
+            v-if="repo.owner == true"
             @click="deleteRepo(repo)"
             data-cy="deleteRepo"
           />
