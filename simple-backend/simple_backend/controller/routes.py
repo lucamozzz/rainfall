@@ -16,9 +16,9 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  """
 
+import os
 from fastapi import APIRouter
-from simple_backend.controller import node_api, config_api, script_api, repository_api, execution_api
-
+from simple_backend.controller import node_api, config_api, script_api, repository_api, execution_api, standard_auth_api
 
 def initialize_api_routes():
     """
@@ -40,5 +40,11 @@ def initialize_api_routes():
 
     # Execution API
     router.include_router(execution_api.router, prefix="/execution", tags=['execution'])
+
+
+    auth_type = os.environ.get("AUTH", "STANDARD")
+    if auth_type == "STANDARD":
+        # Standard Authentication API
+        router.include_router(standard_auth_api.router, prefix="/auth", tags=['auth'])
 
     return router

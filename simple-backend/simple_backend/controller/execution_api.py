@@ -16,7 +16,7 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  """
 from typing import List, Union
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from fastapi.requests import Request
 from starlette.status import HTTP_200_OK
@@ -24,6 +24,7 @@ from sse_starlette.sse import EventSourceResponse
 from simple_backend.schemas.nodes import UINode, CustomNodeStructure, NodeStructure
 from simple_backend.service.config_service import get_requirements
 import simple_backend.service.execution_service as es
+from simple_backend.controller.standard_auth_api import get_current_user
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -34,11 +35,11 @@ MESSAGE_STREAM_RETRY_TIMEOUT = 15000
 router = APIRouter()
 
 @router.post('', status_code=200, response_class=Response)
-def execute(config: dict) -> None:
+def execute(config: dict, user = Depends(get_current_user)) -> None:
     """
     Api used to launch the execution of a dataflow
     """
-    execution_id = es.create_execution_instance(config)
+    execution_id = es.create_execution_instance(config, user)
     task_id = es.execute_dataflow.delay(execution_id)
     es.set_execution_field(execution_id, 'celery_task_id', str(task_id))
     return Response(status_code=HTTP_200_OK)
@@ -63,11 +64,11 @@ def post_nodes_requirements(libs: List[str], ui_nodes: List[UINode],
     
 
 @router.get('/info')
-def get_executions():
+def get_executions(user = Depends(get_current_user)):
     """
     Api used to retrieve name and status of all the executions
     """
-    return es.get_all_executions_status()
+    return es.get_all_executions_status(user)
     
 
 @router.get('/{id}/info/{field}')

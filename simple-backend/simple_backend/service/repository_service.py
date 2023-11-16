@@ -29,30 +29,74 @@ from simple_backend.service.database_service import get_database
 DATABASE_NAME='rainfall'
 REPOSITORIES_COLLECTION_NAME='repositories'
 DATAFLOWS_COLLECTION_NAME='dataflows'
+USERS_COLLECTION_NAME='users'
 db = get_database()
 
 
-def get_repositories_names() -> List[str]:
+def get_repositories_names(user) -> List[str]:
     """ Returns the immediate subdirectories names of the output dir. """
-    return db.get_all_documents_fields(REPOSITORIES_COLLECTION_NAME, {"_id": 1, "name": 1}, {"archived": False})
+    target_id = user["email"]
+    organization = user["organization"]
+    query = {
+        "archived": False,
+        "$or": [
+            {"users": target_id},
+            {"users": organization}
+        ]
+        }
+    repos = db.get_all_documents_fields(REPOSITORIES_COLLECTION_NAME, {"_id": 1, "name": 1, "owner": 1}, query)
+    for repo in repos:
+        if repo["owner"] == target_id:
+            repo["owner"] = True
+        else: 
+            repo["owner"] = False
+    return repos
 
 
-def get_archived_repositories_names() -> List[str]:
+def get_archived_repositories_names(user) -> List[str]:
     """ Returns the immediate subdirectories names of the output dir. """
-    return db.get_all_documents_fields(REPOSITORIES_COLLECTION_NAME, {"_id": 1, "name": 1}, {"archived": True})
+    target_id = user["email"]
+    return db.get_all_documents_fields(REPOSITORIES_COLLECTION_NAME, {"_id": 1, "name": 1}, {"archived": True, "users": {"$in": [target_id]}})
 
 
-def create_repository(repository_name: str) -> None:
+def create_repository(repository_name: str, user) -> None:
     repository_id = str(uuid.uuid4())
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    repo_users = list()
+    repo_users.append(user["email"])
     repository = {
         "_id": repository_id,
         "name": repository_name,
         "created_at": current_time,
         "dataflows": list(),
         "archived": False,
+        "owner": user["email"],
+        "organization": user["organization"],
+        "users": repo_users
     }
     db.create_document(REPOSITORIES_COLLECTION_NAME, repository)
+
+
+# TODO: check if repo owner, check if receiver exists
+def share_repository(repository_id: str, receiver_id: str):
+    users: dict = db.get_all_documents_fields(USERS_COLLECTION_NAME, {"_id": 1, "organization": 1})
+    receiver_exists = False
+    for user in users:
+        if receiver_id == user["id"] or receiver_id == user["organization"]:
+            receiver_exists = True
+    
+    repo_users = db.get_document_field(REPOSITORIES_COLLECTION_NAME, repository_id, "users")
+    if receiver_exists and receiver_id not in repo_users:
+        db.push_document_array_field(REPOSITORIES_COLLECTION_NAME, repository_id, "users", receiver_id)
+
+
+# TODO: check if repo owner, check if receiver exists
+def unshare_repository(repository_id: str, receiver_id: str, user):
+    db.pull_document_array_field(REPOSITORIES_COLLECTION_NAME, repository_id, "users", receiver_id)
+
+
+def get_repository_users(repository_id: str):
+    return db.get_document_field(REPOSITORIES_COLLECTION_NAME, repository_id, "users")
 
 
 def delete_repository(repository_id: str) -> None:
@@ -68,12 +112,7 @@ def get_repository_content(repository_id: str) -> List[list]:
     """
     Method that stores the artifacts (script, requirements, GUI configuration, other metadata)
     """
-    repository: dict = db.get_document(REPOSITORIES_COLLECTION_NAME, {"_id": repository_id}, {"dataflows": 1})
-    if repository:
-        dataflows = repository.get("dataflows", [])
-        return dataflows
-    else:
-        return []
+    return db.get_document_field(REPOSITORIES_COLLECTION_NAME, repository_id, "dataflows")
 
 
 def get_dataflow_from_repository(repository_id: str, dataflow_id: str):

@@ -121,7 +121,7 @@ def revoke_execution(execution_id: str):
     set_execution_field(execution_id, 'status', REVOKED)
 
 
-def create_execution_instance(config):
+def create_execution_instance(config, user):
     execution_id = str(uuid.uuid4())
     execution_name = randomname.generate()
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -137,6 +137,7 @@ def create_execution_instance(config):
         "requirements": "\n".join(config.dependencies),
         "ui": config.ui.json(separators=(',', ':')),
         "created_at": current_time,
+        "owner": user["email"],
     }
     db.create_document(EXECUTIONS_COLLECTION_ID, execution)
     return execution_id
@@ -162,8 +163,8 @@ def update_execution_field(execution_id: str, field_name: str, field_value: str)
     db.push_document_array_field(EXECUTIONS_COLLECTION_ID, execution_id, field_name, field_value)
 
 
-def get_all_executions_status():
-    return db.get_all_documents_fields(EXECUTIONS_COLLECTION_ID, {"_id": 1, "status": 1, "name": 1})
+def get_all_executions_status(user):
+    return db.get_all_documents_fields(EXECUTIONS_COLLECTION_ID, {"_id": 1, "status": 1, "name": 1, "owner": 1}, {"owner": user["email"]})
 
 
 def watch_executions():

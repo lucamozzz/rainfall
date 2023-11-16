@@ -36,6 +36,7 @@ def create_app():
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:7000"] if app.debug else [],
+        allow_credentials=True,
         allow_methods=["*"],
     )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])

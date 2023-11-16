@@ -16,28 +16,29 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  """
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Response, Depends
 from starlette.status import HTTP_204_NO_CONTENT
 from simple_backend import config
 from simple_backend.errors import BadRequestError
 from simple_backend.schemas.dataflow import DataFlow
 from simple_backend.schemas.repository_schemas import RepositoryGet, RepositoryPost
 import simple_backend.service.repository_service as rs
+from simple_backend.controller.standard_auth_api import get_current_user
 
 
 router = APIRouter()
 
 
 @router.get('', response_model=list[object])
-async def get_repositories():
+async def get_repositories(user = Depends(get_current_user)):
     """ Gets all the repositories. """
-    return rs.get_repositories_names()
+    return rs.get_repositories_names(user)
 
 
 @router.get('/archived', response_model=list[object])
-async def get_archived_repositories():
+async def get_archived_repositories(user = Depends(get_current_user)):
     """ Gets all the archived repositories. """
-    return rs.get_archived_repositories_names()
+    return rs.get_archived_repositories_names(user)
 
 
 @router.get('/{repository}')
@@ -46,10 +47,30 @@ async def get_repository(repository: str):
     return rs.get_repository_content(repository)
 
 
+@router.get('/{repository}/users')
+async def get_repository_users(repository: str):
+    """ Gets the users of the repository. """
+    return rs.get_repository_users(repository)
+
+
 @router.post('/{repository_name}')
-async def create_repository(repository_name: str):
+async def create_repository(repository_name: str, user = Depends(get_current_user)):
     """ Creates a new repository. """
-    rs.create_repository(repository_name)
+    rs.create_repository(repository_name, user)
+    return Response(content=None, status_code=204)
+
+
+@router.post('/{repository_id}/share/{receiver_id}')
+async def share_repository(repository_id: str, receiver_id: str):
+    """ Shares a repository. """
+    rs.share_repository(repository_id, receiver_id)
+    return Response(content=None, status_code=204)
+
+
+@router.post('/{repository_id}/unshare/{receiver_id}')
+async def unshare_repository(repository_id: str, receiver_id: str, user = Depends(get_current_user)):
+    """ Unshares a repository. """
+    rs.unshare_repository(repository_id, receiver_id, user)
     return Response(content=None, status_code=204)
 
 
