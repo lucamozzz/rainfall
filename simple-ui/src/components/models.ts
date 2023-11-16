@@ -93,6 +93,7 @@ export interface QTreeNode {
 export interface Repository {
   id: string;
   name: string;
+  owner: boolean;
 }
 
 export interface ExecutionInfo {

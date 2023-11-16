@@ -20,4 +20,24 @@
   <router-view />
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { api } from './boot/axios';
+import { useUserStore } from './stores/userStore';
+import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
+
+const $q = useQuasar();
+const router = useRouter()
+const userStore = useUserStore()
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      userStore.signOut()
+      router.push({ name: 'login' })
+    }
+    return Promise.reject(error);
+  }
+);
+</script>

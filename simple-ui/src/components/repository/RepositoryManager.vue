@@ -37,7 +37,7 @@
         />
       </q-item-section>
 
-      <q-item-section top>
+      <q-item-section>
         <q-item-label lines="1">
           <span class="text-weight-medium">{{ repo.name }}</span>
         </q-item-label>
@@ -61,6 +61,17 @@
             @click="archiveRepo(repo)"
             data-cy="archiveRepo"
           />
+          <q-btn
+            size="12px"
+            flat
+            dense
+            round
+            icon="share"
+            v-if="repo.owner == true"
+            title="Share repository"
+            @click="openUsersDialog(repo)"
+            data-cy="deleteRepo"
+            />
           <q-btn
             size="12px"
             flat
@@ -142,6 +153,7 @@ import { useRepoStore } from 'stores/repoStore';
 import { api } from '../../boot/axios';
 import { Repository } from '../models';
 import RepositoryDialog from './RepositoryDialog.vue';
+import RepositoryUsers from './RepositoryUsers.vue';
 import { AxiosError, AxiosResponse } from 'axios';
 
 const $q = useQuasar();
@@ -153,7 +165,7 @@ onMounted(async () => {
     api.get<Repository[]>('/repositories/archived'),
   ])
     .then((res) => {
-      repoStore.repos = new Map<string, Repository>();
+      repoStore.repos = new Map<string, Repository>();      
       res[0].data.forEach((repo: Repository) => repoStore.repos.set(repo.id, repo));
       repoStore.archivedRepos = new Map<string, Repository>();
       res[1].data.forEach((repo: Repository) => repoStore.archivedRepos.set(repo.id, repo));
@@ -183,7 +195,7 @@ const addRepo = () => {
     api
       .post('/repositories/' + repoName)
       .then(() => {
-        repoStore.repos.set(repoName, { id: repoName, name: repoName });
+        repoStore.repos.set(repoName, { id: repoName, name: repoName, owner: true });
         if (repoStore.repos.size == 1) {
           repoStore.currentRepo = [...repoStore.repos.values()][0].name;
         }
@@ -304,6 +316,24 @@ const openRepositoryDialog = async (repo: Repository) => {
           componentProps: { repo, dataflows },
         });
       }
+    })
+    .catch((err: AxiosError) => {
+      $q.notify({
+        message: (err.response.data as { message: string }).message,
+        type: 'negative',
+      });
+    });
+};
+
+const openUsersDialog = async (repo: Repository) => {
+  await api
+    .get('/repositories/' + repo.id + '/users')
+    .then((res: AxiosResponse) => {
+      const repoUsers: string[] = res.data;
+      $q.dialog({
+          component: RepositoryUsers,
+          componentProps: { repo, repoUsers },
+        });
     })
     .catch((err: AxiosError) => {
       $q.notify({

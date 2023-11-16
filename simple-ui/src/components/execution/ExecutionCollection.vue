@@ -103,6 +103,7 @@ const getExecutions = async () => {
         return map;
       }, new Map<string, ExecutionInfo>());
       executionInfoArray.value = executionStore.getExecutionsArray()
+      
     })
     .catch(() => {
       $q.notify({

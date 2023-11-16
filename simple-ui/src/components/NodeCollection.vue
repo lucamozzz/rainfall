@@ -93,10 +93,7 @@
             size="28px"
             class="q-mr-sm"
           />
-          {{
-            (currentViewMode == ViewMode.LIBRARY ? 'Library: ' : 'Type: ') +
-            prop.node.label
-          }}
+          {{prop.node.label}}
         </div>
         <div
           v-else
