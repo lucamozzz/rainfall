@@ -19,35 +19,37 @@
 <template>
   <q-page padding>
     <div class="q-pa-md q-gutter-sm">
-      <p>DataFlow</p>
-
-      <q-btn
-        color="secondary"
-        label="Save DataFlow"
-        @click="saveDataFlow()"
-        data-cy="saveDataflow"
-      ></q-btn>
+      <q-btn icon="file_download" color="secondary" label="Save DataFlow" @click="saveDataFlow()"
+        data-cy="saveDataflow"></q-btn>
+      <repository-manager></repository-manager>
     </div>
 
     <q-separator spaced=""></q-separator>
 
     <div class="q-pa-md q-gutter-sm">
-      <p>Repositories</p>
-
-      <repository-manager></repository-manager>
+      <q-file ref="filePicker" style="display: none" accept=".csv,.xes" v-model="file" max-file-size="52428800"
+        @update:model-value="loadFile()"></q-file>
+      <q-btn icon="file_upload" color="secondary" label="Upload File" @click="filePicker.pickFiles()" />
+      <local-file-manager></local-file-manager>
     </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { api } from '../boot/axios';
-import { useQuasar } from 'quasar';
+import { useQuasar, QFile } from 'quasar';
 import { getConfig } from 'src/components/utils';
 import RepositoryManager from 'src/components/repository/RepositoryManager.vue';
+import LocalFileManager from 'src/components/repository/LocalFileManager.vue';
 import { useRepoStore } from 'src/stores/repoStore';
+import { Ref, ref } from 'vue';
+import { useFolderStore } from 'src/stores/folderStore';
 
 const $q = useQuasar();
 const repoStore = useRepoStore();
+const folderStore = useFolderStore();
+const filePicker: Ref<QFile> = ref(null);
+const file: Ref<File> = ref(null);
 
 const saveDataFlow = async () => {
   const config: any = getConfig();
@@ -55,15 +57,15 @@ const saveDataFlow = async () => {
   if (repoStore.currentRepo == null || canvasState == null) {
     $q.notify({
       message:
-      'Unable to save dataflow!',
+        'Unable to save dataflow!',
       type: 'negative',
     });
     return;
   }
   config['ui'] = JSON.parse(canvasState)
   config['repository'] = repoStore.currentRepo;
-  
-  
+
+
   await api
     .post('/config', config)
     .then((res) => {
@@ -81,5 +83,29 @@ const saveDataFlow = async () => {
         type: 'negative',
       });
     });
+};
+
+const loadFile = async () => {
+  return await new Promise<boolean>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = async () => {
+      try {
+        const uploadedFile = reader.result as string;
+        await api.post('/folders/file', { name: file.value.name, content: uploadedFile, folder: folderStore.currentFolder })
+          .then((response) => {
+            resolve(true);
+          })
+          .catch((error) => {
+            console.error(error);
+            resolve(false);
+          });
+      } catch (error) {
+        console.error(error);
+        resolve(false);
+      }
+    };
+    reader.readAsText(file.value, 'utf8');
+  });
 };
 </script>

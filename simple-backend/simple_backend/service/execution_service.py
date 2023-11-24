@@ -87,6 +87,7 @@ def execute_dataflow(self, execution_id: str):
         pip_loc = os.path.join(venv_loc, venv_scripts_loc, 'pip')
         os.system(pip_loc + " install --upgrade pip")
         os.system(pip_loc + " install -r requirements.txt")
+        os.system(pip_loc + " install pymongo")
 
         if self.is_aborted():
             cleanup(path)

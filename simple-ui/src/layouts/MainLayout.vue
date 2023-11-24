@@ -29,7 +29,7 @@
 
         <q-btn v-if="tab == 'ui' && selectedNodes.length == 1" dense flat round icon="menu" @click="toggleRightDrawer"
           data-cy="rightDrawer" />
-        <q-btn v-if="tab == 'import_export'" dense flat round icon="logout" @click="logout"/>
+        <q-btn v-if="tab == 'import_export'" dense flat round icon="logout" @click="logout" />
       </q-toolbar>
     </q-header>
 

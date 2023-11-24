@@ -96,6 +96,19 @@ export interface Repository {
   owner: boolean;
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  files: string[];
+  owner: boolean;
+}
+
+export interface LocalFile {
+  id: string;
+  name: string;
+  created_at: string
+}
+
 export interface ExecutionInfo {
   id: string;
   name?: string;

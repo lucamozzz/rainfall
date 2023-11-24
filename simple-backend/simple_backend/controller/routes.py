@@ -18,7 +18,7 @@
 
 import os
 from fastapi import APIRouter
-from simple_backend.controller import node_api, config_api, script_api, repository_api, execution_api, standard_auth_api
+from simple_backend.controller import node_api, config_api, script_api, repository_api, execution_api, standard_auth_api, folder_api
 
 def initialize_api_routes():
     """
@@ -38,9 +38,11 @@ def initialize_api_routes():
     # Repository API
     router.include_router(repository_api.router, prefix='/repositories', tags=['repository'])
 
+    # Folder API
+    router.include_router(folder_api.router, prefix='/folders', tags=['folder'])
+
     # Execution API
     router.include_router(execution_api.router, prefix="/execution", tags=['execution'])
-
 
     auth_type = os.environ.get("AUTH", "STANDARD")
     if auth_type == "STANDARD":

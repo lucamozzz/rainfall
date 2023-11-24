@@ -30,8 +30,8 @@
       text-color="primary"
       v-model="currentViewMode"
       :options="[
-        { value: ViewMode.LIBRARY, slot: 'library' },
         { value: ViewMode.TYPE, slot: 'type' },
+        { value: ViewMode.LIBRARY, slot: 'library' },
       ]"
       @update:model-value="organizeNodesByViewMode()"
       data-cy="viewToggle"
@@ -129,7 +129,7 @@ enum ViewMode {
   LIBRARY,
   TYPE,
 }
-const currentViewMode = ref(ViewMode.LIBRARY);
+const currentViewMode = ref(ViewMode.TYPE);
 const filter = ref('');
 const nodes = ref([] as QTreeNode[]);
 const organizedNodes = ref([]);
