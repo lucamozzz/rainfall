@@ -159,7 +159,6 @@ export function getUIState() {
 export function setUIState(uiState: UIState) {
   const canvasStore = useCanvasStore();
   const configStore = useConfigStore();
-  configStore.nodeStructures = new Map(Object.entries(uiState.structures));
   configStore.nodeConfigs = new Map(Object.entries(uiState.configs));
   configStore.nodeAnyConfigs = new Map(Object.entries(uiState.anyConfigs));
   canvasStore.canvasNodes = new Map(Object.entries(uiState.nodes));
