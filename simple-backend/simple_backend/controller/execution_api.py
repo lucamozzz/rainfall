@@ -103,14 +103,11 @@ def delete_execution_logs(id: str):
 
 
 @router.get("/watch")
-async def watch_executions(request: Request):
+async def watch_executions():
     """
     Api used to receive updates on the executions
     """
-    # TODO: fix this
-    from simple_backend.service.database_service import get_database
-    db = get_database()
-    return EventSourceResponse(content=db.watch_executions())
+    return EventSourceResponse(content=es.watch_executions())
 
 
 @router.get("/watch/{id}")
@@ -118,7 +115,4 @@ async def watch_execution(id: str):
     """
     Api used to receive updates on a specific execution
     """
-    # TODO: fix this
-    from simple_backend.service.database_service import get_database
-    db = get_database()
-    return EventSourceResponse(content=db.watch_execution(id))
+    return EventSourceResponse(content=es.watch_execution(id))

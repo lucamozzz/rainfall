@@ -168,38 +168,28 @@ def get_all_executions_status(user):
     return db.get_all_documents_fields(EXECUTIONS_COLLECTION_ID, {"_id": 1, "status": 1, "name": 1, "owner": 1}, {"owner": user["email"]})
 
 
+def watch_execution(execution_id: str):
+    def update_function(item_update):
+        if 'status' in item_update:
+            if item_update['status'] != 'Running':
+                data = {"id": execution_id, "status": item_update['status']}
+                event_data = f"data: {dumps(data)}\n"
+                return event_data
+        else:
+            logs_values = [value for key, value in item_update.items() if "logs" in key]
+            data = {"id": execution_id, "logs": logs_values[0]}
+            event_data = f"{dumps(data)}"
+            return event_data
+
+    return db.watch_document(EXECUTIONS_COLLECTION_ID, update_function)
+
+
 def watch_executions():
-    return db.watch_executions()
+    def update_function(item_update, pipeline_id):
+        updated_status = item_update.get('status')
+        if updated_status is not None:
+            data = {"id": pipeline_id, "status": updated_status}
+            event_data = f"{dumps(data)}"
+            return event_data
 
-
-def watch_executions(execution_id: str):
-    return db.watch_execution(execution_id)
-
-
-# TODO: fix this
-# def watch_execution(execution_id: str):
-#     def update_function(item_update):
-#         if 'status' in item_update:
-#             if item_update['status'] != 'Running':
-#                 data = {"id": execution_id, "status": item_update['status']}
-#                 event_data = f"data: {dumps(data)}\n"
-#                 return event_data
-#         else:
-#             logs_values = [value for key, value in item_update.items() if "logs" in key]
-#             data = {"id": execution_id, "logs": logs_values[0]}
-#             event_data = f"{dumps(data)}"
-#             yield event_data
-
-#     yield db.watch_item(EXECUTIONS_COLLECTION_ID, update_function)
-
-
-# TODO: fix this
-# def watch_executions():
-#     def update_function(item_update, pipeline_id):
-#         updated_status = item_update.get('status')
-#         if updated_status is not None:
-#             data = {"id": pipeline_id, "status": updated_status}
-#             event_data = f"{dumps(data)}"
-#             yield event_data
-
-#     yield db.watch_items(EXECUTIONS_COLLECTION_ID, update_function)
+    return db.watch_documents(EXECUTIONS_COLLECTION_ID, update_function)

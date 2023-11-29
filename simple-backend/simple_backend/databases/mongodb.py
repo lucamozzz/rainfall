@@ -113,76 +113,32 @@ class MongoDB(DatabaseService):
             print(f"An error occurred: {str(e)}")
 
 
-    def watch_execution(self, id: str):
+    def watch_document(self, collection_id: str, update_function):    
         try:
-            collection = self.db[EXECUTIONS_COLLECTION_NAME]
+            collection = self.db[collection_id]
             pipeline = [{'$match': {'operationType': 'update'}}]
             with collection.watch(pipeline) as stream:
                 for change in stream:
-                    execution_update = change["updateDescription"]["updatedFields"]
-                    if 'status' in execution_update:
-                        if execution_update['status'] != 'Running':
-                            data = {"id": id, "status": execution_update['status']}
-                            event_data = f"data: {dumps(data)}\n"
-                            return event_data
-                    else:
-                        logs_values = [value for key, value in execution_update.documents() if "logs" in key]
-                        data = {"id": id, "logs": logs_values[0]}
-                        event_data = f"{dumps(data)}"
-                        yield event_data
+                    document_update = change["updateDescription"]["updatedFields"]
+                    yield update_function(document_update)
 
         except ConnectionError:
             print("Connection to the database failed.")
         except Exception as e:
-            print(f"An error occurred: {str(e)}")
+            print(f"An error occurred: {str(e.with_traceback)}")
 
 
-    # TODO: fix this
-    # def watch_document(self, collection_id: str, update_function):
-    #     try:
-    #         collection = self.db[collection_id]
-    #         pipeline = [{'$match': {'operationType': 'update'}}]
-    #         with collection.watch(pipeline) as stream:
-    #             for change in stream:
-    #                 document_update = change["updateDescription"]["updatedFields"]
-    #                 update_function(document_update)
-
-    #     except ConnectionError:
-    #         print("Connection to the database failed.")
-    #     except Exception as e:
-    #         print(f"An error occurred: {str(e)}")
-
-
-    def watch_executions(self):
+    def watch_documents(self, collection_id: str, update_function):
         try:
-            collection = self.db[EXECUTIONS_COLLECTION_NAME]
+            collection = self.db[collection_id]
             pipeline = [{'$match': {'operationType': 'update'}}]
             with collection.watch(pipeline) as stream:
                 for change in stream:
                     pipeline_id = str(change["documentKey"]["_id"])
-                    updated_status = change["updateDescription"]["updatedFields"].get('status')
-                    if updated_status is not None:
-                        data = {"id": pipeline_id, "status": updated_status}
-                        event_data = f"{dumps(data)}"
-                        yield event_data
+                    updated_document = change["updateDescription"]["updatedFields"]
+                    yield update_function(updated_document, pipeline_id)
         
         except ConnectionError:
             print("Connection to the database failed.")
         except Exception as e:
-            print(f"An error occurred: {str(e)}")
-
-    # TODO: fix this
-    # def watch_documents(self, collection_id: str, update_function):
-    #     try:
-    #         collection = self.db[collection_id]
-    #         pipeline = [{'$match': {'operationType': 'update'}}]
-    #         with collection.watch(pipeline) as stream:
-    #             for change in stream:
-    #                 pipeline = str(change["documentKey"]["_id"])
-    #                 updated_document = change["updateDescription"]["updatedFields"]
-    #                 update_function(updated_document)
-        
-    #     except ConnectionError:
-    #         print("Connection to the database failed.")
-    #     except Exception as e:
-    #         print(f"An error occurred: {str(e)}")
+            print(f"An error occurred: {str(e.with_traceback)}")
