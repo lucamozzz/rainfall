@@ -78,7 +78,7 @@ onMounted(async () => {
             }
         })
         .catch((error: AxiosError) => {
-            $q.notify({ message: "Unable to load files", type: 'negative' });
+            $q.notify({ message: "Unable to load folders", type: 'negative' });
         });
 });
 
@@ -156,15 +156,15 @@ const openFolderDialog = async (folder: Folder) => {
     await api
         .get('/folders/' + folder.id)
         .then((res) => {
-            res.data.forEach((file: LocalFile) => {
-                folderStore.files.set(file.id, file)
-            });
-            if (folderStore.folders.get(folder.id).files.length == 0) {
+            if (res.data.length == 0) {
                 $q.notify({
                     message: 'No files available in the folder: ' + folder.name,
                     type: 'negative',
                 });
             } else {
+                res.data.forEach((file: LocalFile) => {
+                    folderStore.files.set(file.id, file)
+                });
                 $q.dialog({
                     component: FolderDialog,
                     componentProps: { folder: folder },

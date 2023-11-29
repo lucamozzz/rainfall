@@ -27,7 +27,7 @@
     <q-separator spaced=""></q-separator>
 
     <div class="q-pa-md q-gutter-sm">
-      <q-file ref="filePicker" style="display: none" accept=".csv,.xes" v-model="file" max-file-size="52428800"
+      <q-file ref="filePicker" style="display: none" accept=".csv,.xes" v-model="file"
         @update:model-value="loadFile()"></q-file>
       <q-btn icon="file_upload" color="secondary" label="Upload File" @click="filePicker.pickFiles()" />
       <local-file-manager></local-file-manager>
@@ -52,7 +52,7 @@ const filePicker: Ref<QFile> = ref(null);
 const file: Ref<File> = ref(null);
 
 const saveDataFlow = async () => {
-  const config: any = getConfig();
+  const config = getConfig();
   let canvasState = sessionStorage.getItem('canvasState')
   if (repoStore.currentRepo == null || canvasState == null) {
     $q.notify({

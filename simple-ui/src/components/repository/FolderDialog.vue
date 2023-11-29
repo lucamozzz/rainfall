@@ -27,7 +27,7 @@
       </q-scroll-area>
       <q-card-section class="column items-center">
         <q-list bordered style="min-width: 500px">
-          <q-item v-for="file in copiedDataFlows" :key="file.id" outline>
+          <q-item v-for="file in copiedFolderFiles" :key="file.id" outline>
             <q-item-section side>
               <div class="text-grey-8 q-gutter-xs">
                 <q-btn size="12px" flat dense round icon="delete" title="Delete file" @click="deleteFile(file.id)" />
@@ -63,14 +63,22 @@ defineEmits(useDialogPluginComponent.emitsObject);
 const folderStore = useFolderStore()
 const $q = useQuasar();
 const { dialogRef, onDialogCancel } = useDialogPluginComponent();
-const copiedDataFlows = ref(Array.from(folderStore.files.values()) as LocalFile[]);
+
+// NB: this has to be done because the files listed in a folder 
+// are returned as string instead of an array of ids
+// TODO: fix in a more robust way
+let folderFilesString: string = props.folder.files.toString().replace(/^'|'$/g, '')
+const folderFilesArray: string[] = folderFilesString.slice(1, -1).split(', ')
+const copiedFolderFiles = ref(Array.from(folderFilesArray, (file: string) => {
+  return folderStore.files.get(file.slice(1, -1))
+}) as LocalFile[]);
 
 // TODO: Update file list when file is updated
 // watch(
 //   () => folderStore.$state,
 //   async () => {
 //     folderStore.folders.get(props.folder.id).files.forEach((file) => {
-//       copiedDataFlows.value.push(folderStore.files.get(file)) 
+//       copiedFolderFiles.value.push(folderStore.files.get(file)) 
 //     })
 //   },
 //   { deep: true }
@@ -127,7 +135,7 @@ const deleteFile = async (fileId: string) => {
     .delete<LocalFile>(`folders/${props.folder.id}/files/${file.id}`)
     .then(() => {
       folderStore.files.delete(fileId)
-      if (copiedDataFlows.value.length == 0) {
+      if (copiedFolderFiles.value.length == 0) {
         onDialogCancel();
       }
     })

@@ -15,13 +15,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
- <template>
+<template>
   <div class="q-pa-md" style="max-width: 350px">
 
-    <q-list >
-      <q-item v-for="execution in executionInfoArray" :key="execution.id" class="q-my-sm" clickable v-ripple @click="selectExecution(execution.id)">
+    <q-list>
+      <q-item v-for="execution in executionInfoArray" :key="execution.id" class="q-my-sm" clickable v-ripple
+        @click="selectExecution(execution.id)">
         <q-item-section avatar>
-          <q-avatar :color="getStatusColor(execution.status)" :class="{ 'blink-animation': isExecutionRunning(execution.id) }" size="20px">
+          <q-avatar :color="getStatusColor(execution.status)"
+            :class="{ 'blink-animation': isExecutionRunning(execution.id) }" size="20px">
           </q-avatar>
         </q-item-section>
         <q-item-section>
@@ -73,7 +75,7 @@ let openLeftDrawer: () => void = inject('openLeftDrawer')
 watch(
   () => monitorStore.$state,
   async (state) => {
-    if (!state.execution){
+    if (!state.execution) {
       openLeftDrawer()
     }
   },
@@ -103,20 +105,24 @@ const getExecutions = async () => {
         return map;
       }, new Map<string, ExecutionInfo>());
       executionInfoArray.value = executionStore.getExecutionsArray()
-      
+
     })
     .catch(() => {
       $q.notify({
         message: 'Unable to load executions!',
         type: 'negative',
       });
-    })    
+    })
 
-    executionEventSource = new EventSource(process.env.BACKEND_URL + '/api/v1/execution/watch');  
-    executionEventSource.onmessage = (event) => {
-      const executionUpdate: ExecutionInfo = JSON.parse(event.data)
+  executionEventSource = new EventSource(process.env.BACKEND_URL + '/api/v1/execution/watch');
+  executionEventSource.onmessage = (event) => {
+    let data = event.data
+    if (data != 'None') {
+      if (data.startsWith('data: '))
+        data = data.slice(5)
+      const executionUpdate: ExecutionInfo = JSON.parse(data)
       let executionInfo: ExecutionInfo = executionStore.executionsMap.get(executionUpdate.id)
-      if (executionInfo){
+      if (executionInfo) {
         executionInfo.status = executionUpdate.status
         executionStore.executionsMap.set(executionUpdate.id, executionInfo)
       }
@@ -124,18 +130,19 @@ const getExecutions = async () => {
         monitorStore.execution.status = executionUpdate.status
       }
     };
+  }
 
-    executionEventSource.onerror = (error) => {
-      console.error('SSE error:', error);
-      executionEventSource.close()
-    };
+  executionEventSource.onerror = (error) => {
+    console.error('SSE error:', error);
+    executionEventSource.close()
+  };
 };
 
 const selectExecution = async (executionId: string) => {
   await api
     .get<ExecutionInfo>('/execution/' + executionId + '/info')
     .then((value) => monitorStore.setExecution(value.data as ExecutionInfo))
-    .catch(() => 
+    .catch(() =>
       $q.notify({
         message: 'Unable to load execution info!',
         type: 'negative',
@@ -144,14 +151,23 @@ const selectExecution = async (executionId: string) => {
 
   monitorEventSource = new EventSource(process.env.BACKEND_URL + '/api/v1/execution/watch/' + executionId);
   monitorEventSource.onmessage = (event) => {
-    // TODO: fix API endpoint that returns string array
-    let update: { id: string, logs: string | string[] } = JSON.parse(event.data)
-    if (typeof update.logs === 'string')
-      monitorStore.execution.logs.push(update.logs)
-    else
-      monitorStore.execution.logs.push(update.logs[0])
-  };
-  
+    let data: string = event.data
+    if (data != 'None') {
+      // TODO: fix API endpoint that returns string array
+      if (data.startsWith('data: '))
+        data = data.slice(5)
+      let update: { id: string, logs: string | string[] | null, status: string | null } = JSON.parse(data)
+      if (update.logs != null) {
+        if (typeof update.logs === 'string')
+          monitorStore.execution.logs.push(update.logs)
+        else
+          monitorStore.execution.logs.push(update.logs[0])
+      } else {
+        monitorStore.execution.status = update.status
+      }
+    };
+  }
+
   monitorEventSource.onerror = (error) => {
     // console.error("SSE error:", error);
     monitorEventSource.close()
@@ -159,32 +175,32 @@ const selectExecution = async (executionId: string) => {
 };
 
 onUnmounted(() => {
-    if (executionEventSource)
-      executionEventSource.close()
-    if (monitorEventSource)
-      monitorEventSource.close()
-    monitorStore.$reset()
-  }
+  if (executionEventSource)
+    executionEventSource.close()
+  if (monitorEventSource)
+    monitorEventSource.close()
+  monitorStore.$reset()
+}
 );
 
 </script>
 
 
 <style>
-/* Definizione dell'animazione di lampeggio */
 @keyframes blink {
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0;
   }
+
   100% {
     opacity: 1;
   }
 }
 
-/* Applica l'animazione di lampeggio alla classe .blink-animation */
 .blink-animation {
   animation: blink 1s infinite;
 }
