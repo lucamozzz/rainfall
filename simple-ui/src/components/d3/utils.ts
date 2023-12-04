@@ -91,7 +91,7 @@ export function extractPathCoords(elems: PathElements): PathCoords {
 export function portContainsPoint(c: SVGCircleElement, e: Event) {
   return (
     Math.pow(+c.getAttribute('cx') - d3.pointer(e, c)[0], 2) +
-      Math.pow(+c.getAttribute('cy') - d3.pointer(e, c)[1], 2) <=
+    Math.pow(+c.getAttribute('cy') - d3.pointer(e, c)[1], 2) <=
     D3_CONSTS.PORT_RADIUS * D3_CONSTS.PORT_RADIUS
   );
 }
@@ -183,7 +183,7 @@ export function loadUIFromFile(file: File) {
   });
 }
 
-export function loadUIFromScript(file: File) {
+export function loadUIFromScriptFile(file: File) {
   return new Promise<boolean>((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -194,82 +194,7 @@ export function loadUIFromScript(file: File) {
           .post<ReversedScript>('/script', { script: script })
           .then((res) => {
             const reversedScript = res.data;
-            const canvasStore = useCanvasStore();
-            const configStore = useConfigStore();
-            canvasStore.clearCanvasEdges();
-            canvasStore.clearCanvasNodes();
-            configStore.clearNodeConfigs();
-            configStore.nodeStructures = new Map(
-              [...configStore.nodeStructures.entries()].filter((structure) => {
-                return (
-                  structure[0] == 'rain.nodes.custom.custom.CustomNode' ||
-                  !structure[0].includes('rain.nodes.custom.custom.CustomNode')
-                );
-              })
-            );
-
-            reversedScript.custom.forEach((c, i) => {
-              const customStructure: CustomNodeStructure = {
-                package: 'rain.nodes.custom.custom.CustomNode' + (i + 1),
-                clazz: c.clazz,
-                input: c.inputs.reduce(
-                  (acc, value) => Object.assign(acc, { [value]: 'custom' }),
-                  {}
-                ),
-                output: c.outputs.reduce(
-                  (acc, value) => Object.assign(acc, { [value]: 'custom' }),
-                  {}
-                ),
-                parameter: c.params.map((p) => {
-                  return {
-                    name: p,
-                    type: 'Any',
-                    is_mandatory: false,
-                    description: 'Custom Parameter: ' + p,
-                    default_value: null,
-                  } as SimpleNodeParameter;
-                }),
-                methods: null,
-                tags: {
-                  library: 'Base',
-                  type: 'Custom',
-                },
-                description: 'A Custom Node.',
-                function_name: c.function_name,
-                code: c.code,
-              };
-              configStore.addNodeStructure(customStructure);
-            });
-
-            canvasStore.canvasTransform = 'translate(0,0) scale(1)';
-            canvasStore.selectedNodes = [];
-            reversedScript.nodes.forEach((n) => {
-              const nodePackage = configStore.getPackageFromClazz(n.clazz);
-              canvasStore.canvasNodes.set(n.node, {
-                name: n.node,
-                package: nodePackage,
-                x: n.pos[0],
-                y: n.pos[1],
-                selected: false,
-              });
-              configStore.setNodeConfig(nodePackage, n.node);
-              n.params.forEach((p) => {
-                if (configStore.nodeAnyConfigs.has(`${n.node}$${p.key}`)) {
-                  configStore.nodeAnyConfigs.set(`${n.node}$${p.key}`, p.type);
-                }
-                configStore.nodeConfigs.get(n.node)[p.key] = p.value;
-              });
-            });
-
-            reversedScript.edges.forEach((e) => {
-              const pathElems: PathElements = {
-                fromNode: e.from_node,
-                fromPort: e.from_var,
-                toNode: e.to_node,
-                toPort: e.to_var,
-              };
-              canvasStore.canvasEdges.set(getEdgeName(pathElems), pathElems);
-            });
+            scriptToUI(reversedScript)
             resolve(true);
           })
           .catch(() => {
@@ -280,5 +205,104 @@ export function loadUIFromScript(file: File) {
       }
     };
     reader.readAsText(file, 'utf8');
+  });
+}
+
+
+export function loadUIFromScript(script: string) {
+  return new Promise<boolean>((resolve) => {
+    try {
+      api
+        .post<ReversedScript>('/script', { script: script })
+        .then((res) => {
+          const reversedScript = res.data;
+          scriptToUI(reversedScript)
+          resolve(true);
+        })
+        .catch(() => {
+          resolve(false);
+        });
+    } catch {
+      resolve(false);
+    }
+  })
+}
+
+const scriptToUI = (reversedScript: ReversedScript) => {
+  const canvasStore = useCanvasStore();
+  const configStore = useConfigStore();
+  canvasStore.clearCanvasEdges();
+  canvasStore.clearCanvasNodes();
+  configStore.clearNodeConfigs();
+  configStore.nodeStructures = new Map(
+    [...configStore.nodeStructures.entries()].filter((structure) => {
+      return (
+        structure[0] == 'rain.nodes.custom.custom.CustomNode' ||
+        !structure[0].includes('rain.nodes.custom.custom.CustomNode')
+      );
+    })
+  );
+
+  reversedScript.custom.forEach((c, i) => {
+    const customStructure: CustomNodeStructure = {
+      package: 'rain.nodes.custom.custom.CustomNode' + (i + 1),
+      clazz: c.clazz,
+      input: c.inputs.reduce(
+        (acc, value) => Object.assign(acc, { [value]: 'custom' }),
+        {}
+      ),
+      output: c.outputs.reduce(
+        (acc, value) => Object.assign(acc, { [value]: 'custom' }),
+        {}
+      ),
+      parameter: c.params.map((p) => {
+        return {
+          name: p,
+          type: 'Any',
+          is_mandatory: false,
+          description: 'Custom Parameter: ' + p,
+          default_value: null,
+        } as SimpleNodeParameter;
+      }),
+      methods: null,
+      tags: {
+        library: 'Base',
+        type: 'Custom',
+      },
+      description: 'A Custom Node.',
+      function_name: c.function_name,
+      code: c.code,
+    };
+    configStore.addNodeStructure(customStructure);
+  });
+
+  canvasStore.canvasTransform = 'translate(0,0) scale(1)';
+  canvasStore.selectedNodes = [];
+  reversedScript.nodes.forEach((n) => {
+    const nodePackage = configStore.getPackageFromClazz(n.clazz);
+    canvasStore.canvasNodes.set(n.node, {
+      name: n.node,
+      package: nodePackage,
+      x: n.pos[0],
+      y: n.pos[1],
+      selected: false,
+    });
+    configStore.setNodeConfig(nodePackage, n.node);
+    n.params.forEach((p) => {
+      if (configStore.nodeAnyConfigs.has(`${n.node}$${p.key}`)) {
+        configStore.nodeAnyConfigs.set(`${n.node}$${p.key}`, p.type);
+      }
+      configStore.nodeConfigs.get(n.node)[p.key] = p.value;
+    });
+  });
+
+  reversedScript.edges.forEach((e) => {
+    const pathElems: PathElements = {
+      fromNode: e.from_node,
+      fromPort: e.from_var,
+      toNode: e.to_node,
+      toPort: e.to_var,
+    };
+    canvasStore.canvasEdges.set(getEdgeName(pathElems), pathElems);
   });
 }

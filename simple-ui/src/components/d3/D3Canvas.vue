@@ -118,7 +118,7 @@ import {
   getUIState,
   setUIState,
   isNameValid,
-  loadUIFromScript,
+  loadUIFromScriptFile,
   loadUIFromFile,
 } from './utils';
 import { useRouter } from 'vue-router';
@@ -594,7 +594,7 @@ const execute = async () => {
 
 
 const loadFile = async (isScript: boolean) => {
-  if (isScript && (await loadUIFromScript(script.value))) {
+  if (isScript && (await loadUIFromScriptFile(script.value))) {
     $q.notify({
       message: 'Script file loaded successfully',
       type: 'positive',

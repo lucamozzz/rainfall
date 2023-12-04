@@ -18,7 +18,7 @@
 
 import { installQuasar } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { readFileSync } from 'fs';
-import { loadUIFromFile, loadUIFromScript } from 'src/components/d3/utils';
+import { loadUIFromFile, loadUIFromScriptFile } from 'src/components/d3/utils';
 import { expect, describe, it } from 'vitest';
 import { api } from 'src/boot/axios';
 import MockAdapter from 'axios-mock-adapter';
@@ -43,7 +43,7 @@ describe('d3 test', () => {
     const file = new File([script], 'script.py', {
       type: 'text/plain',
     });
-    const res = await loadUIFromScript(file);
+    const res = await loadUIFromScriptFile(file);
     expect(res).toBe(true);
   });
 });

@@ -93,6 +93,7 @@ import { useDialogPluginComponent, useQuasar } from 'quasar';
 import { api } from 'src/boot/axios';
 import { AxiosError } from 'axios';
 import { downloadPythonScript, downloadUI } from '../utils';
+import { loadUIFromScript, getUIState } from './../d3/utils';
 import { useRouter } from 'vue-router';
 import { Repository } from '../models';
 
@@ -130,9 +131,11 @@ const loadDataflow = async (flow: string) => {
     });
 };
 
-const onLoadUI = (flow: string) => {
-  let state = metadata.value.get(flow).ui
-  sessionStorage.setItem('canvasState', state)
+const onLoadUI = async (flow: string) => {
+  let script = metadata.value.get(flow).script
+  await loadUIFromScript(script)
+  const canvasState = JSON.stringify(getUIState());
+  sessionStorage.setItem('canvasState', canvasState);
   router.push({ name: 'canvas' });
 };
 
