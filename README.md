@@ -1,64 +1,82 @@
-[![Codecov](https://img.shields.io/codecov/c/github/SIMPLE-DVS/rainfall)](https://app.codecov.io/gh/SIMPLE-DVS/rainfall)
-![GitHub](https://img.shields.io/github/license/SIMPLE-DVS/rainfall)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-# RAINFALL-UI
+# Rainfall
 
-RAINFALL-UI allows a data scientist, even a non-expert programmer, to graphically setup a DataFlow node by node, as well as configuring each of them. From the UI it is possible to create new custom nodes thanks to an integrated editor and also start the execution of a DataFlow, while looking at the progress and the logs produced.
+Rainfall allows a data scientist, even a non-expert programmer, to graphically setup a DataFlow node by node, as well as configuring each of them. From the web application user interface it is possible to create new custom nodes thanks to an integrated editor and also start the execution of a DataFlow, while looking at the progress and the logs produced.
+
+This document includes:
+- the steps for installing a local deployment of the framework;
+- an overview of the web application user interface;
+- one use case involving process mining analysis;
+- one use case involving machine learning analysis.
+
+More details can be found at [https://pros.unicam.it/rainfall](https://pros.unicam.it/rainfall). 
 
 ## Installation
 
-### Backend-Frontend
+Clone the git repository in a local folder using 
 
-The [Backend README](simple-backend/README.rst) contains more instructions on how to launch/develop the backend.
+`git clone git@bitbucket.org:proslabteam/rainfall_unicam.git`
 
-The [Frontend README](simple-ui/README.md) contains more instructions on how to launch/develop the frontend.
+and then run
+
+`docker-compose up -d --build`
+
+This command will pull both the [Rainfall](https://hub.docker.com/r/proslabunicam/Rainfall) and the [Rainfall Worker](https://hub.docker.com/r/proslabunicam/Rainfall_worker) Docker images from DockerHub and start the application locally. 
+
+Rainfall should now be accessible at [http://localhost:5000](http://localhost:5000).
 
 ## Docker
 
-RAINFALL-UI is available as a Docker image by creating it from the [Dockerfile](Dockerfile) or pulling it from [DockerHub](https://hub.docker.com/r/dragonalex98/rainfall).
-
-### Instructions for Docker
-
 In order to use a Docker image for instantiating a container you need to download [Docker Desktop](https://www.docker.com/products/docker-desktop/) by choosing the right one for your OS. When you deal with Docker it should be clear that a container is isolated from the local host.
-This makes containers very versatile and independent from the OS of the users but it also means that the container and the hostosting system are not able to share data.
 
-To do that both binds and volumes can be used. When you use a bind mount, a file or directory on the host machine is mounted into a container. The file or directory is referenced by its absolute path on the host machine. By contrast, when you use a volume, a new directory is created within Docker’s storage directory on the host machine, and Docker manages that directory’s contents.
+Rainfall and Rainfall Worker Docker images are available in [DockerHub](https://hub.docker.com/r/proslabunicam) or can be locally built using the Dockerfile and Dockerfile.worker, respectively, using the `docker build` command. 
 
-More on binds and volumes can be found [here](https://docs.docker.com/storage/bind-mounts/) and [here](https://docs.docker.com/storage/)
+For troubleshooting, check out [Docker official documentation](https://docs.docker.com/).
 
-We are going to use binds in the following way.
+## Web application overview
 
-First of all, a folder shold be created on your local host; it is named local_folder. Once the folder was created you have to bind it to the one in the container, in this case /tmp/results.
+### Canvas
+The main canvas is where the user can compose a pipeline by simply drag-and-dropping nodes from the left drawer and configure them using the right one. The play button displayed at the top of the canvas is used to launch an execution. From this page, the user can also import/export a pipeline in the form of a Python script or a JSON file representing the canvas state.
 
-To do that:
+<img src="images/canvas.png"  width="600"/>
 
-- Run Docker Desktop and, if you are a Linux/MacOS user, open a Terminal and, making sure to be in the source directory, digit the following string:
+### Custom node editor
+The custom node editor allows to define new Python nodes that can be used right away in the definition of a pipeline. Once a custom node is defined and saved, the user can access it from the canvas page in the same way it the same way the built-in nodes are accessed. The custom node editor implements all the features that a common IDE implements, such as syntax highligthing and code completion.
 
-      $ docker run -it --name rainfall -v "$(pwd)"/Users/user/Desktop/local_folder:/tmp/results --rm -p [Local Port number]:5000 dragonalex98/rainfall:latest 
- 
-- On the contrary, if you are a Windows user, make sure to be in the source directory and digit the following string:
+<img src="images/custom.png" width="600"/>
 
-      > docker run -it --name rainfall -v C:\Users\user\local_folder:/tmp/results --rm -p [Local Port number]:5000 dragonalex98/rainfall:latest
+### Execution panel
+The execution panel is where the user can monitor the ongoing and previews executions in real-time. For each execution instance, the current status is displayed. The user can then click on a specific execution and have a look at the produced logs, which are displayed on the right side of the page, and at a simplified representation of the pipeline.
 
-Where [Local Port number] is a placeholder for the port you are goig to use locally
+<img src="images/panel.png" width="600"/>
 
-Then, open a browser and digit the following url:
+### Import/export view
+The import/export view has two main functions:
+- Save and manage pipeline repositories
+- Upload and manage local folders
 
-      localhost:[Local Port number]/
+#### Pipeline repositories
+Pipeline repositories can be used to save the current pipeline configuration and share it with other users. When stored in a repository, a pipeline is tagged with a name and can be later uploaded in the canvas for further configuration or exported locally.
+
+#### Local folders
+Local folders are used by Rainfall to manage small (<10Mb) local `.csv` or `.xes` files uploaded by the user or produced by a pipeline. Both folders and files have a unique ID that can be copied by the user and used to configure nodes that read local files, such as the `RainfallCSVLoader`, or that write to local folders, such as the `RainfallCSVWriter`. This feature is intended to give the user freedom to test new nodes on small datasets, without having to connect to remote data sources and sinks, and use Rainfall right away.
+
+<img src="images/impexp.png" width="600"/>
 
 ## Examples
 
-## Trivial example
+### Inductive Miner Example
 
 An example of a simple DataFlow is represented in the image below:
 
-<img src="images/trivial.png" />
+<img src="images/pm_example.png" width="600"/>
 
 where:
 
-- _IrisDataLoader1_: loads the famous iris dataset;
-- _IForestASD1_: creates a model using the isolation forest algorithm;
-- _PickleModelWriter1_: save the created model in the local file system.
+- _RainfallXESLoader1_: loads a .xes file loaded in a Rainfall folder;
+- _Pm4pyInductiveMiner1_: runs the Inductive Miner discovery algorithm implemented by the PM4PY Python library;
+- _RainfallBPMNWriter1_: saves the resulting BPMN model in a Rainfall folder.
 
 Once saved, the corresponding DataFlow is a Python script that looks like this:
 
@@ -67,148 +85,126 @@ import rain as sr
 
 df = sr.DataFlow("dataflow1")
 
+
+RainfallXESLoader1 = sr.RainfallXESLoader(
+    node_id="RainfallXESLoader1",
+    file="file_name.xes" # change this!
+)
+
+Pm4pyInductiveMiner1 = sr.Pm4pyInductiveMiner(
+    node_id="Pm4pyInductiveMiner1",
+    activity_key="concept:name",
+    timestamp_key="time:timestamp",
+    case_id_key="case:concept:name",
+)
+
+RainfallBPMNWriter1 = sr.RainfallBPMNWriter(
+    node_id="RainfallBPMNWriter1",
+    name="result.bpmn",
+    folder="rainfall_folder_id" # and this!
+)
+
+
+df.add_edges([
+    RainfallXESLoader1 @ 'dataset' > Pm4pyInductiveMiner1 @ 'event_log',
+    Pm4pyInductiveMiner1 @ 'model' > RainfallBPMNWriter1 @ 'model',
+])
+
+df.execute()
+```
+
+where:
+- the Rain library is imported;
+- the nodes are created and configured with their parameters;
+- the nodes are connected.
+
+Once the pipeline is created as shown above, it can be executed by pressing the play button located at the top of the canvas.
+
+<img src="images/play_button.png" />
+
+By doing so, the user will have to confirm the requirements (python libraries that are automatically identified by Rainfall) and the execution will finally start. The user will now be redirected to the execution panel where all the pipeline executions can be monitored in real-time.
+
+At the end of the execution, the resulting BPMN model is saved in the Rainfall local folder specified by the user, where the source .xes file containing the event logs is also stored:
+
+<img src="images/pm_files.png" width="300"/>
+
+
+### KMedoids Clustering example
+
+Another example, where both built-in nodes and custom nodes are used, is provided as follows,
+
+<img src="images/ml_example.png" width="600"/>
+
+where:
+
+- _IrisDatasetLoader1_: loads the well-known Iris dataset;
+- _DistanceMatrix1_: is a custom node that calculates the distance matrix using the imported _cdist()_ function;
+- _KMedoidsClusterer1_: is a built-in node that runs the KMedoids clustering algorithm;
+- _RainfallCSVWriter1_: saves the identified clusters in a Rainfall local folder;
+- _RainfallCSVWriter2_: saves the identified medoids in a Rainfall local folder.
+
+Once saved, the corresponding DataFlow is a Python script that looks like this:
+
+```python
+import rain as sr
+
+
+def DistanceMatrix(inp, out, param='euclidean'):
+    from scipy.spatial.distance import cdist
+    X = inp['numpy_array_dataset']
+    out['DistanceMatrix'] = cdist(X, X, metric=param)
+
+
+df = sr.DataFlow("dataflow1")
+
+
 IrisDatasetLoader1 = sr.IrisDatasetLoader(
     node_id="IrisDatasetLoader1",
     separate_target=False,
 )
 
-IForestASD1 = sr.IForestASD(
-    node_id="IForestASD1",
-    window_size=50,
+DistanceMatrix1 = sr.CustomNode(
+    node_id="DistanceMatrix1",
+    use_function=DistanceMatrix,
+    param="euclidean",
 )
 
-PickleModelWriter1 = sr.PickleModelWriter(
-    node_id="PickleModelWriter1",
-    path="./model.pkl",
+KMedoidsClusterer1 = sr.KMedoidsClusterer(
+    node_id="KMedoidsClusterer1",
+    execute=['fit'],
+    n_clusters=2,
+    precomputed=True,
 )
 
-df.add_edges([
-    IrisDatasetLoader1 @ 'dataset' > IForestASD1 @ 'dataset',
-    IForestASD1 @ 'model' > PickleModelWriter1 @ 'model',
-])
-
-df.execute()
-```
-
-This script can then be executed by installing the [RAIN](https://github.com/SIMPLE-DVS/rain) library and all the other required dependencies.
-
-There is also the possibility to launch the computation directly from the execution page of RAINFALL, where the RAIN library and the requirements are automatically detected and installed in a virtual environment in a chosen folder.
-
-### Execute the pipeline
-
-Once the pipeline is created as shown above, you need to execute it.
-In order to do that you should go to the EXECUTE TAB, by pressing the EXECUTE BUTTON (shown in the figure), in the lower part of the window
-
-<img src="images/Execute_button.png" />
-
-By doing so, you will see a simplified view of your pipeline. Now, clicking on the Execute button in the upper right part of the Tab, the user will have to confirm the requirements (python libraries that are automatically identified by RAINFALL) and then to specify the path for the execution (figure below). Please pay attention, the path of execution is the same that you use for the binding operation /tmp/results/
-
-<img src="images/Execution_tab.png" />
-
-## Non-trivial example
-
-A more complex example is provided as follows, where desired outcome of the analysis should be a model that is capable to distinguish whether a certain signal comes from a blade attached to a metalworking machine that is new, semi-new or worn-out:
-
-<img src="images/custom.png" />
-
-where:
-
-- _LoadKerasModel1_: is a custom node that loads a previously generated Keras model;
-- _PickleModelLoader1_: loads a previously generated Pickle file that contains the data to perform the analysis on;
-- _LatentSpace1_: is a custom node that extracts the latent space related to the autoencoder layer of the Keras model;
-- _Frobenius1_: is a custom node that calculates the Frobenius distance between two matrices;
-- _StableClusters1_: is a custom node that establishes the number of stable clusters looking at the latent space and the Frobenius norm;
-- _PandasCSVWriter1_: saves the number of clusters in each time instant in a CSV file.
-
-In this example there are both built-in nodes like PickleModelLoader and PandasCSVWriter and custom nodes, like LoadKerasModel and all the others.
-
-In this case the custom nodes have been added to the DataFlow thanks to the integrated code editor and a easy-to-follow syntax.
-
-A custom node is nothing more than a Python function that takes at least two parameters. The first two parameters are considered as input and output variables, while all the others are treated as the node's parameters. The single inputs and outputs parameters can then be specified with the subscript operator and the name of the parameter.
-
-```python
-import keras
-
-def load_keras_model(i, o, path: str):
-    o['model'] = keras.models.load_model(path)
-```
-
-The final result is the DataFlow below:
-
-```python
-import rain as sr
-
-def load_keras_model(i, o, path: str):
-    ...
-
-def sliding_frobenius(i, o, window_length):
-    ...
-
-def latent_space(i, o):
-    ...
-
-def stable_clusters(i, o, min_pts, eps):
-    ...
-
-df = sr.DataFlow("dataflow1")
-
-LoadKerasModel1 = sr.CustomNode(
-    node_id="LoadKerasModel1",
-    use_function=load_keras_model,
-    ...,
+RainfallCSVWriter2 = sr.RainfallCSVWriter(
+    node_id="RainfallCSVWriter2",
+    folder_id="rainfall_folder_id", # change this!
+    name="medoids.csv",
 )
 
-PickleModelLoader1 = sr.PickleModelLoader(
-    node_id="PickleModelLoader1",
-    ...,
-)
-
-Frobenius1 = sr.CustomNode(
-    node_id="Frobenius1",
-    use_function=sliding_frobenius,
-    ...,
-)
-
-LatentSpace1 = sr.CustomNode(
-    node_id="LatentSpace1",
-    use_function=latent_space,
-)
-
-StableClusters1 = sr.CustomNode(
-    node_id="StableClusters1",
-    use_function=stable_clusters,
-    ...,
-)
-
-PandasCSVWriter1 = sr.PandasCSVWriter(
-    node_id="PandasCSVWriter1",
-    ...,
+RainfallCSVWriter1 = sr.RainfallCSVWriter(
+    node_id="RainfallCSVWriter1",
+    folder_id="rainfall_folder_id", # and this!
+    name="clusters.csv",
 )
 
 
 df.add_edges([
-    LoadKerasModel1 @ 'model' > LatentSpace1 @ 'model',
-    PickleModelLoader1 @ 'model' > Frobenius1 @ 'pickle',
-    PickleModelLoader1 @ 'model' > LatentSpace1 @ 'pickle',
-    Frobenius1 @ 'distances' > StableClusters1 @ 'frobenius',
-    LatentSpace1 @ 'result' > StableClusters1 @ 'latent_space',
-    StableClusters1 @ 'clusters' > PandasCSVWriter1 @ 'dataset',
+    DistanceMatrix1 @ 'DistanceMatrix' > KMedoidsClusterer1 @ 'fit_dataset',
+    KMedoidsClusterer1 @ 'medoids' > RainfallCSVWriter2 @ 'dataset',
+    KMedoidsClusterer1 @ 'labels' > RainfallCSVWriter1 @ 'dataset',
+    IrisDatasetLoader1 @ 'dataset' > DistanceMatrix1 @ 'numpy_array_dataset',
 ])
 
 df.execute()
 ```
 
 where:
-
-- the RAIN library is imported;
-- the user-defined functions for the custom nodes are shown;
+- the Rain library is imported;
+- **the user-defined functions for the custom nodes are shown**;
 - the nodes are created and configured with their parameters;
 - the nodes are connected.
 
-## Authors
+At the end of the execution, the resulting files are saved in the Rainfall local folder specified by the user:
 
-- Alessandro Antinori, Rosario Capparuccia, Riccardo Coltrinari, Flavio Corradini, Marco Piangerelli, Barbara Re, Marco Scarpetta
-
-## Copyright
-
-- Università degli Studi di Camerino and Sigma S.p.A.
+<img src="images/ml_files.png" width="300"/>
