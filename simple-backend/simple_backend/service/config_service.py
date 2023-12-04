@@ -16,16 +16,11 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  """
 
-import time
-import io
-import zipfile
-import yaml
 import uuid
 import os
 from datetime import datetime
-from pathlib import Path
 from typing import List, Union
-from simple_backend.errors import DagCycleError, FileWriteError
+from simple_backend.errors import DagCycleError
 from simple_backend.schemas.nodes import UI, CustomNode, Node, UINode, CustomNodeStructure, NodeStructure
 from simple_backend.service import node_service
 from simple_backend.service.dag_generator import DagCreator
@@ -77,7 +72,6 @@ def get_requirements(libs: List[str], ui_nodes: List[UINode],
     """
     libs = [lib.lower() for lib in libs]
     requirements = set([os.environ.get("RAIN_REPOSITORY_URL")])
-    # requirements = set(["git+ssh://git@bitbucket.org/proslabteam/rain@prodprod#egg=rain"])
 
     # TODO: manage dependencies' versions and avoid duplicates
     #       e.g. pandas and pandas~=1.3.0 shouldn't be two different dependencies

@@ -8,21 +8,19 @@ services:
     restart: always
     ports:
       - 5000:5000
-    depends_on:
-      - mongo
-      - rabbitmq
     environment:
       - MODE=PROD
       - PORT=5000
       - SERVER_ADDR=0.0.0.0
-      - RAIN_REPOSITORY_URL=git+ssh://git@bitbucket.org/proslabteam/rain@ingka/dev#egg=rain
-      - RAIN_STRUCTURE_URL=https://firebasestorage.googleapis.com/v0/b/rainfall-e8e57.appspot.com/o/rain_structure_ingka.json?alt=media
-      - DATABASE_URL=mongodb://mongo:27017/
+      - RAIN_REPOSITORY_URL=git+ssh://git@bitbucket.org/proslabteam/rain_unicam@main#egg=rain
+      - RAIN_STRUCTURE_URL=https://firebasestorage.googleapis.com/v0/b/rainfall-e8e57.appspot.com/o/rain_structure.json?alt=media
+      - MONGODB_URL=mongodb://mongo:27017/
       - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
-    # Uncomment these lines during development
-    #   - MODE=DEBUG
-    # volumes:
-    #   - ./simple-backend/simple_backend:/app/simple_backend:ro
+      # - SECRET_KEY=
+
+      # Uncomment during development
+      # - MODE=DEBUG
+      # - RAIN_REPOSITORY_URL=git+ssh://git@bitbucket.org/proslabteam/rain_unicam@dev#egg=rain
 
   mongo:
     image: mongo:latest
@@ -35,8 +33,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    # starts mongo without a replica set, which is needed for real time streams
-    # entrypoint: [ "/usr/bin/mongod", "--bind_ip_all" ]
     entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
 
   mongo-init:
@@ -73,13 +69,12 @@ services:
 
   worker:
     build: .
-    image: rainfall
+    image: rainfall_worker
     command: celery -A simple_backend.service.execution_service.celery worker --loglevel=info
     restart: always
     depends_on:
       - mongo
       - rabbitmq
-      - webapp
     environment:
-      - DATABASE_URL=mongodb://mongo:27017/
+      - MONGODB_URL=mongodb://mongo:27017/
       - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
