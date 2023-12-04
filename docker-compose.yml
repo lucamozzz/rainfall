@@ -4,7 +4,7 @@ services:
 
   webapp:
     build: .
-    image: rainfall
+    image: proslabunicam/rainfall
     restart: always
     ports:
       - 5000:5000
@@ -69,7 +69,7 @@ services:
 
   worker:
     build: .
-    image: rainfall_worker
+    image: proslabunicam/rainfall_worker
     command: celery -A simple_backend.service.execution_service.celery worker --loglevel=info
     restart: always
     depends_on:
