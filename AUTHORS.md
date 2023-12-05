@@ -18,3 +18,7 @@ Marco Piangerelli
 Barbara Re
 
 Marco Scarpetta
+
+Luca Mozzoni
+
+Vincenzo Nucci

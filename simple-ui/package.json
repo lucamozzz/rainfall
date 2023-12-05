@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Frontend for RAINFALL",
   "productName": "Rainfall",
-  "author": "Università degli Studi di Camerino and Sigma S.p.A.",
+  "author": "Università degli Studi di Camerino.",
   "license": "AGPLV3+",
   "private": true,
   "scripts": {

@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
 """
- Copyright (C) 2023 Università degli Studi di Camerino and Sigma S.p.A.
- Authors: Alessandro Antinori, Rosario Capparuccia, Riccardo Coltrinari, Flavio Corradini, Marco Piangerelli, Barbara Re, Marco Scarpetta
+ Copyright (C) 2023 Università degli Studi di Camerino.
+ Authors: Alessandro Antinori, Rosario Capparuccia, Riccardo Coltrinari, Flavio Corradini, Marco Piangerelli, Barbara Re, Marco Scarpetta, Luca Mozzoni, Vincenzo Nucci
 
  This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
+ it under the terms of the GNU General Public License as
  published by the Free Software Foundation, either version 3 of the
  License, or (at your option) any later version.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+ GNU General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
+ You should have received a copy of the GNU General Public License
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  """
 
@@ -33,12 +33,12 @@ requirements = [ ]
 test_requirements = ['pytest>=3', ]
 
 setup(
-    author="Università degli Studi di Camerino and Sigma S.p.A.",
+    author="Università degli Studi di Camerino.",
     python_requires='>=3.6',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
-        'LICENSE :: OSI APPROVED :: GNU AFFERO GENERAL PUBLIC LICENSE V3 OR LATER (AGPLV3+)',
+        'LICENSE :: OSI APPROVED :: GNU GENERAL PUBLIC LICENSE V3 OR LATER (AGPLV3+)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
@@ -47,7 +47,7 @@ setup(
     ],
     description="This is the repository for Simple backend",
     install_requires=requirements,
-    license="GNU Affero General Public License v3 or later (AGPLv3+)",
+    license="GNU General Public License v3 or later (AGPLv3+)",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='simple_backend',
