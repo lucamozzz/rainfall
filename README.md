@@ -39,17 +39,17 @@ For troubleshooting, check out [Docker official documentation](https://docs.dock
 ### Canvas
 The main canvas is where the user can compose a pipeline by simply drag-and-dropping nodes from the left drawer and configure them using the right one. The play button displayed at the top of the canvas is used to launch an execution. From this page, the user can also import/export a pipeline in the form of a Python script or a JSON file representing the canvas state.
 
-<img src="images/canvas.png"  width="600"/>
+<img src="docs/images/canvas.png"  width="600"/>
 
 ### Custom node editor
 The custom node editor allows to define new Python nodes that can be used right away in the definition of a pipeline. Once a custom node is defined and saved, the user can access it from the canvas page in the same way it the same way the built-in nodes are accessed. The custom node editor implements all the features that a common IDE implements, such as syntax highligthing and code completion.
 
-<img src="images/custom.png" width="600"/>
+<img src="docs/images/custom.png" width="600"/>
 
 ### Execution panel
 The execution panel is where the user can monitor the ongoing and previews executions in real-time. For each execution instance, the current status is displayed. The user can then click on a specific execution and have a look at the produced logs, which are displayed on the right side of the page, and at a simplified representation of the pipeline.
 
-<img src="images/panel.png" width="600"/>
+<img src="docs/images/panel.png" width="600"/>
 
 ### Import/export view
 The import/export view has two main functions:
@@ -62,7 +62,7 @@ Pipeline repositories can be used to save the current pipeline configuration and
 #### Local folders
 Local folders are used by Rainfall to manage small (<10Mb) local `.csv` or `.xes` files uploaded by the user or produced by a pipeline. Both folders and files have a unique ID that can be copied by the user and used to configure nodes that read local files, such as the `RainfallCSVLoader`, or that write to local folders, such as the `RainfallCSVWriter`. This feature is intended to give the user freedom to test new nodes on small datasets, without having to connect to remote data sources and sinks, and use Rainfall right away.
 
-<img src="images/impexp.png" width="600"/>
+<img src="docs/images/impexp.png" width="600"/>
 
 ## Examples
 
@@ -70,7 +70,7 @@ Local folders are used by Rainfall to manage small (<10Mb) local `.csv` or `.xes
 
 An example of a simple DataFlow is represented in the image below:
 
-<img src="images/pm_example.png" width="600"/>
+<img src="docs/images/pm_example.png" width="600"/>
 
 where:
 
@@ -120,20 +120,20 @@ where:
 
 Once the pipeline is created as shown above, it can be executed by pressing the play button located at the top of the canvas.
 
-<img src="images/play_button.png" />
+<img src="docs/images/play_button.png" />
 
 By doing so, the user will have to confirm the requirements (python libraries that are automatically identified by Rainfall) and the execution will finally start. The user will now be redirected to the execution panel where all the pipeline executions can be monitored in real-time.
 
 At the end of the execution, the resulting BPMN model is saved in the Rainfall local folder specified by the user, where the source .xes file containing the event logs is also stored:
 
-<img src="images/pm_files.png" width="300"/>
+<img src="docs/images/pm_files.png" width="300"/>
 
 
 ### KMedoids Clustering example
 
 Another example, where both built-in nodes and custom nodes are used, is provided as follows,
 
-<img src="images/ml_example.png" width="600"/>
+<img src="docs/images/ml_example.png" width="600"/>
 
 where:
 
@@ -207,4 +207,4 @@ where:
 
 At the end of the execution, the resulting files are saved in the Rainfall local folder specified by the user:
 
-<img src="images/ml_files.png" width="300"/>
+<img src="docs/images/ml_files.png" width="300"/>

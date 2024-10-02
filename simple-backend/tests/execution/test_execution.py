@@ -18,7 +18,7 @@
 
 import pytest
 import json
-from simple_backend.config import here
+from config import here
 from tests.create_test_client import create_test_client, setup_dirs
 
 

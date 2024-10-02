@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from simple_backend.service.database_service import DatabaseService
+from service.database_service import DatabaseService
 from json import dumps
 
 DATABASE_NAME='rainfall'

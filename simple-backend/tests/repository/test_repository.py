@@ -17,7 +17,7 @@
  """
 
 import pytest
-from simple_backend.schemas.repository_schemas import RepositoryPost
+from schemas.repository_schemas import RepositoryPost
 from tests.create_test_client import create_test_client, setup_dirs
 
 

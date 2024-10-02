@@ -19,8 +19,8 @@
 from typing import Union
 from fastapi import APIRouter
 from pydantic import BaseModel
-from simple_backend.schemas.nodes import ConfigurationSchema, CustomNode, Node
-from simple_backend.service import config_service
+from schemas.nodes import ConfigurationSchema, CustomNode, Node
+from service import config_service
 
 
 router = APIRouter()

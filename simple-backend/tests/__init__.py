@@ -16,4 +16,4 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  """
 
-"""Unit test package for simple_backend."""
+"""Unit test package for """

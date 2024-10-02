@@ -22,9 +22,9 @@ import os
 from typing import List
 from pymongo import MongoClient
 from datetime import datetime
-from simple_backend import config
-from simple_backend.errors import BadRequestError
-from simple_backend.service.database_service import get_database
+import config
+from errors import BadRequestError
+from service.database_service import get_database
 
 DATABASE_NAME='rainfall'
 REPOSITORIES_COLLECTION_NAME='repositories'

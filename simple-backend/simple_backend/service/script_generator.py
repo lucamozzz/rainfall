@@ -18,7 +18,7 @@
 
 import ast
 from jinja2 import Environment, BaseLoader
-from simple_backend.service.node_service import parse_custom_node_code
+from service.node_service import parse_custom_node_code
 
 template = """import {{ rain_module }} as sr
 

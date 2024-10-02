@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from service.database_service import get_database
-from simple_backend.schemas.auth import Token, TokenData, User
+from schemas.auth import Token, TokenData, User
 from dotenv import load_dotenv
 load_dotenv()
 

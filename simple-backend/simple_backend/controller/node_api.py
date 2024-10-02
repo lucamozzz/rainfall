@@ -17,10 +17,10 @@
  """
 
 from fastapi import APIRouter, Depends
-from simple_backend.errors import BadRequestError
-from simple_backend.schemas.nodes import NodeStructure, CustomNodeIOParams, CustomNodeSchema
-from simple_backend.service import node_service
-from simple_backend.service.node_service import parse_custom_node_code
+from errors import BadRequestError
+from schemas.nodes import NodeStructure, CustomNodeIOParams, CustomNodeSchema
+from service import node_service
+from service.node_service import parse_custom_node_code
 
 
 router = APIRouter()

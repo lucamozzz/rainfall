@@ -19,8 +19,8 @@
 import shutil
 from pathlib import Path
 from fastapi.testclient import TestClient
-from simple_backend.app import create_app
-from simple_backend import config
+from app import create_app
+import config
 
 
 def create_test_client():

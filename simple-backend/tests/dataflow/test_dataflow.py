@@ -18,8 +18,8 @@
 
 import pytest
 import shutil
-from simple_backend.config import here
-from simple_backend.schemas.dataflow import DataFlow
+from config import here
+from schemas.dataflow import DataFlow
 from tests.create_test_client import create_test_client, setup_dirs
 
 

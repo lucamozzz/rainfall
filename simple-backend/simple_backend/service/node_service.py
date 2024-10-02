@@ -22,8 +22,8 @@ import sys
 import os
 from typing import List, Optional
 import requests
-from simple_backend.errors import CustomNodeConfigurationError, NodesRetrievalError
-from simple_backend.schemas.nodes import CustomNode, NodeStructure, CustomNodeIOParams
+from errors import CustomNodeConfigurationError, NodesRetrievalError
+from schemas.nodes import CustomNode, NodeStructure, CustomNodeIOParams
 
 RAIN_STRUCTURE_URL=os.getenv('RAIN_STRUCTURE_URL', 'https://firebasestorage.googleapis.com/v0/b/rainfall-e8e57.appspot.com/o/rain_structure.json?alt=media')
 

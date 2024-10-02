@@ -17,8 +17,8 @@
  """
 
 import pytest
-from simple_backend.config import here
-from simple_backend.schemas.nodes import NodeStructure, CustomNodeIOParams
+from config import here
+from schemas.nodes import NodeStructure, CustomNodeIOParams
 from tests.create_test_client import create_test_client
 
 
