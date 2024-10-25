@@ -47,6 +47,9 @@
               <div>
                 <q-btn class="full-width" color="primary" label="Login" type="submit" rounded></q-btn>
               </div>
+              <div>
+                <q-btn class="full-width" color="grey" label="Login as guest" @click="onGuestLogin()" rounded></q-btn>
+              </div>
             </q-form>
           </q-card-section>
         </q-card>
@@ -83,7 +86,22 @@ let onSubmit = async () => {
       message: 'Wrong credentials!'
     })
   })
+}
 
+let onGuestLogin = async () => {
+  userStore.doLogin({
+    'username': 'guest',
+    'password': 'guest',
+  }).then(() => {
+    router.push({ name: 'canvas' })
+  }).catch((error) => {
+    username.value = ""
+    password.value = ""
+    $q.notify({
+      type: 'negative',
+      message: 'Wrong credentials!'
+    })
+  })
 }
 
 </script>

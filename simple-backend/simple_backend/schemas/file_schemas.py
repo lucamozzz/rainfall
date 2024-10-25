@@ -18,16 +18,7 @@
 
 from pydantic import BaseModel
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str = None
-
-
-class User(BaseModel):
-    email: str
-    username: str
-    organization: str
+class FileConfigSchema(BaseModel):
+    name: str
+    content: str
+    folder: str = None

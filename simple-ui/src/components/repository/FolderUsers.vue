@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import { useDialogPluginComponent, useQuasar } from 'quasar';
 import { api } from 'src/boot/axios';
 import { Folder } from '../models';
@@ -79,17 +79,17 @@ let text = ref()
 
 const shareFolder = async (folder: Folder, user: string) => {
   await api
-    .post('/folders/' + folder.id + '/share/' + user)
+    .post('/folders/share/' + folder.name + '/' + user)
     .then((res) => {
       copiedUsers.value.push(res.data);
       onDialogCancel();
     })
-    .catch((error) => $q.notify({ message: "Unable to share folder", type: 'negative' }));
+    .catch(() => $q.notify({ message: 'Unable to share folder', type: 'negative' }));
 };
 
 const unshareFolder = async (folder: Folder, user: string) => {
   await api
-    .post('/folders/' + folder.id + '/unshare/' + user)
+    .post('/folders/unshare/' + folder.name + '/' + user)
     .then((res) => {
       let index = copiedUsers.value.indexOf(res.data);
       if (index !== -1) {
@@ -97,6 +97,6 @@ const unshareFolder = async (folder: Folder, user: string) => {
       }
       onDialogCancel();
     })
-    .catch((error) => $q.notify({ message: "Unable to unshare folder", type: 'negative' }));
+    .catch(() => $q.notify({ message: 'Unable to unshare folder', type: 'negative' }));
 };
 </script>

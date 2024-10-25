@@ -26,10 +26,10 @@ from celery import Celery
 from celery.contrib.abortable import AbortableTask
 from virtualenv import cli_run
 import shutil
-from simple_backend.errors import BadRequestError
-from simple_backend.schemas.nodes import ConfigurationSchema
-from simple_backend.service.database_service import get_database
-from simple_backend.service.config_service import generate_script
+from errors import BadRequestError
+from schemas.nodes import ConfigurationSchema
+from service.database_service import get_database
+from service.config_service import generate_script
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -41,7 +41,7 @@ ERROR = "Error"
 REVOKED = "Revoked"
 DATABASE_NAME='rainfall'
 EXECUTIONS_COLLECTION_ID='executions'
-WORKER_EXECUTION_PATH='/tmp/executions'
+WORKER_EXECUTION_PATH='/tmp/execution'
 
 celery = Celery(__name__)
 celery.conf.broker_url = os.environ.get("BROKER_URL")
@@ -50,7 +50,7 @@ db = get_database()
 
 
 @celery.task(name="execute_dataflow", ignore_result=True, bind=True, base=AbortableTask)
-def execute_dataflow(self, execution_id: str):
+def execute_dataflow(self, execution_id: str, execution_issuer: str):
     def cleanup(path: str):
         if os.path.isdir(path):
             shutil.rmtree(path)
@@ -87,13 +87,12 @@ def execute_dataflow(self, execution_id: str):
         pip_loc = os.path.join(venv_loc, venv_scripts_loc, 'pip')
         os.system(pip_loc + " install --upgrade pip")
         os.system(pip_loc + " install -r requirements.txt")
-        os.system(pip_loc + " install pymongo")
 
         if self.is_aborted():
             cleanup(path)
             return 'Task aborted'
 
-        cmd = [os.path.join(venv_loc, venv_scripts_loc, "python"), "script.py"]
+        cmd = [os.path.join(venv_loc, venv_scripts_loc, "python"), "script.py", execution_issuer]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=path, universal_newlines=True, bufsize=1, text=True)
 
         while True:
@@ -122,7 +121,7 @@ def revoke_execution(execution_id: str):
     set_execution_field(execution_id, 'status', REVOKED)
 
 
-def create_execution_instance(config, user):
+def create_execution_instance(config, user_id):
     execution_id = str(uuid.uuid4())
     execution_name = randomname.generate()
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -132,13 +131,13 @@ def create_execution_instance(config, user):
         "_id": execution_id,
         "celery_task_id": None,
         "name": execution_name,
+        "created_at": current_time,
+        "issuer": user_id,
         "status": PENDING,
         "logs": list(),
         "script": script,
         "requirements": "\n".join(config.dependencies),
         "ui": config.ui.json(separators=(',', ':')),
-        "created_at": current_time,
-        "owner": user["email"],
     }
     db.create_document(EXECUTIONS_COLLECTION_ID, execution)
     return execution_id
@@ -165,7 +164,7 @@ def update_execution_field(execution_id: str, field_name: str, field_value: str)
 
 
 def get_all_executions_status(user):
-    return db.get_all_documents_fields(EXECUTIONS_COLLECTION_ID, {"_id": 1, "status": 1, "name": 1, "owner": 1}, {"owner": user["email"]})
+    return db.get_all_documents_fields(EXECUTIONS_COLLECTION_ID, {"_id": 1, "status": 1, "name": 1, "issuer": 1}, {"issuer": user["_id"]})
 
 
 def watch_execution(execution_id: str):

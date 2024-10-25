@@ -146,9 +146,4 @@ class ConfigurationSchema(BaseModel):
     dependencies: list[str]
     ui: UI
     repository: str = None
-
-
-class FileConfigSchema(BaseModel):
-    name: str
-    content: str
-    folder: str = None
+    

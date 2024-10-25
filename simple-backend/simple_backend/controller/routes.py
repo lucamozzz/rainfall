@@ -18,7 +18,7 @@
 
 import os
 from fastapi import APIRouter
-from simple_backend.controller import node_api, config_api, script_api, repository_api, execution_api, standard_auth_api, folder_api
+from controller import node_api, config_api, script_api, repository_api, execution_api, standard_auth_api, folder_api
 
 def initialize_api_routes():
     """

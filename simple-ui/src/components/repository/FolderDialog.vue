@@ -18,7 +18,7 @@
 
 <template>
   <q-dialog ref="dialogRef">
-    <q-card class="q-pa-sm" style="display: flex; flex-direction: column; align-items: center">
+    <q-card class="q-pa-md" style="display: flex; flex-direction: column; align-items: center">
       Files in folder: {{ folder.name }}
       <q-scroll-area class="fit">
         <div class="q-pa-sm">
@@ -27,17 +27,21 @@
       </q-scroll-area>
       <q-card-section class="column items-center">
         <q-list bordered style="min-width: 500px">
-          <q-item v-for="file in copiedFolderFiles" :key="file.id" outline>
+          <q-item v-for="file in folderFiles" :key="file.name" outline>
             <q-item-section side>
               <div class="text-grey-8 q-gutter-xs">
-                <q-btn size="12px" flat dense round icon="delete" title="Delete file" @click="deleteFile(file.id)" />
-                <q-btn size="12px" flat dense round icon="download" title="Share folder" @click="downloadFile(file.id)" />
-                <q-btn size="12px" flat dense round icon="content_copy" @click="copyID(file.id)" />
+                <q-btn size="12px" flat dense round icon="delete" title="Delete file"
+                  @click="onDeleteFile(file.name)" />
+                <q-btn size="12px" flat dense round icon="download" title="Download file"
+                  @click="downloadFile(file.name)" />
+                <q-btn size="12px" v-if="file.name.endsWith('.csv')" flat dense round icon="visibility"
+                  title="View file" @click="visualizeFile(file.name)" />
               </div>
             </q-item-section>
-            <q-item-section>
-              <q-item-label class="text-weight-medium">{{ displayFileName(file.name) }}</q-item-label>
-              <q-item-label caption lines="1">{{ file.created_at }}</q-item-label>
+            <q-item-section @click="copyID(folder.name + '/' + file)" class="cursor-pointer">
+              <q-item-label lines="1" class="text-weight-medium">{{ file.name }}</q-item-label>
+              <q-item-label lines="1" :caption="true" class="text-weight-medium">{{ file.created_at + ' • ' + file.size
+                }}</q-item-label>
             </q-item-section>
             <q-separator />
           </q-item>
@@ -52,60 +56,31 @@ import { useDialogPluginComponent, useQuasar, copyToClipboard, exportFile } from
 import { api } from 'src/boot/axios';
 import { AxiosError } from 'axios';
 import { Folder, LocalFile } from '../models';
-import { useFolderStore } from 'src/stores/folderStore';
-import { ref, onMounted, onUnmounted, inject, watch } from 'vue';
+import { ref } from 'vue';
+import { csvToHtmlPage } from '../visuals';
 
 const props = defineProps<{
   folder: Folder;
+  files: LocalFile[];
 }>();
 
 defineEmits(useDialogPluginComponent.emitsObject);
-const folderStore = useFolderStore()
 const $q = useQuasar();
 const { dialogRef, onDialogCancel } = useDialogPluginComponent();
-
-// NB: this has to be done because the files listed in a folder 
-// are returned as string instead of an array of ids
-// TODO: fix in a more robust way
-let folderFilesString: string = props.folder.files.toString().replace(/^'|'$/g, '')
-const folderFilesArray: string[] = folderFilesString.slice(1, -1).split(', ')
-const copiedFolderFiles = ref(Array.from(folderFilesArray, (file: string) => {
-  return folderStore.files.get(file.slice(1, -1))
-}) as LocalFile[]);
-
-// TODO: Update file list when file is updated
-// watch(
-//   () => folderStore.$state,
-//   async () => {
-//     folderStore.folders.get(props.folder.id).files.forEach((file) => {
-//       copiedFolderFiles.value.push(folderStore.files.get(file)) 
-//     })
-//   },
-//   { deep: true }
-// );
+const folderFiles = ref(props.files.slice());
 
 const copyID = (text: string) => {
   copyToClipboard(text)
     .then(() => {
-      $q.notify({ message: "File ID copied to clipboard!", type: 'positive' })
+      $q.notify({ message: 'File name copied to clipboard!', type: 'positive' })
     })
 }
 
-const displayFileName = (fileName: string) => {
-  const maxLength = 50;
-  if (fileName.length <= maxLength)
-    return fileName;
-  const [nameWithoutExtension, fileExtension] = fileName.split('.');
-  const shortenedName = nameWithoutExtension.substring(0, maxLength - 3) + '...';
-  const shortenedFileName = shortenedName + ' ' + fileExtension;
-  return shortenedFileName;
-}
-
-const downloadFile = async (fileId: string) => {
+const downloadFile = async (fileName: string) => {
   await api
-    .get(`folders/files/${fileId}`)
+    .get(`folders/${props.folder.name}/${fileName}`)
     .then((res) => {
-      const status = exportFile(res.data.name, res.data.content, {
+      const status = exportFile(fileName, res.data, {
         encoding: 'utf-8',
       });
       if (status) {
@@ -129,13 +104,39 @@ const downloadFile = async (fileId: string) => {
     });
 };
 
-const deleteFile = async (fileId: string) => {
-  const file: LocalFile = folderStore.files.get(fileId)
+const visualizeFile = async (fileName: string) => {
+  if (fileName.split('.').pop() != 'csv')
+    $q.notify({
+      message: 'Not a CSV file',
+      type: 'negative',
+    });
+  else await api
+    .get(`folders/${props.folder.name}/${fileName}`)
+    .then((res) => {
+      let fileContent = res.data;
+      fileContent = csvToHtmlPage(res.data, fileName);
+      const fileBlob = new Blob([fileContent], { type: 'text/html;charset=utf-8' });
+      const fileUrl = URL.createObjectURL(fileBlob);
+      window.open(fileUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(fileUrl), 10000);
+    })
+    .catch((err: AxiosError) => {
+      $q.notify({
+        message: (err.response.data as { message: string }).message,
+        type: 'negative',
+      });
+    });
+};
+
+const onDeleteFile = async (file: string) => {
   await api
-    .delete<LocalFile>(`folders/${props.folder.id}/files/${file.id}`)
+    .delete<LocalFile>(`folders/${props.folder.name}/files/${file}`)
     .then(() => {
-      folderStore.files.delete(fileId)
-      if (copiedFolderFiles.value.length == 0) {
+      folderFiles.value.splice(
+        folderFiles.value.findIndex((fileObj) => fileObj.name == file),
+        1
+      );
+      if (folderFiles.value.length == 0) {
         onDialogCancel();
       }
     })
