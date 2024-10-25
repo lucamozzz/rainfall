@@ -14,7 +14,8 @@ pipelines:
         - step:
             name: Build and Test
             script:
-              - docker build . --file Dockerfile --tag rainfall:latest
+              - IMAGE_NAME="rainfall"
+              - docker build . --file Dockerfile --tag ${IMAGE_NAME}
             services:
               - docker
             caches:
@@ -29,8 +30,9 @@ pipelines:
       - step:
           name: Build and Test
           script:
-            - docker build . --file Dockerfile --tag rainfall
-            - docker save ${IMAGE_NAME} --output "rainfall.tar"
+            - IMAGE_NAME="rainfall"
+            - docker build . --file Dockerfile --tag ${IMAGE_NAME}
+            - docker save ${IMAGE_NAME} --output "${IMAGE_NAME}.tar"
           services:
             - docker
           caches:
