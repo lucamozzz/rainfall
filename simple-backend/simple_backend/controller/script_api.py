@@ -20,8 +20,8 @@ import ast
 import networkx as nx
 import re
 from fastapi import APIRouter, Request
-from simple_backend.schemas.script import ReversedScript
-from simple_backend.service.node_service import get_node_param_value_and_type, find_custom_node_params
+from schemas.script import ReversedScript
+from service.node_service import get_node_param_value_and_type, find_custom_node_params
 
 
 router = APIRouter()

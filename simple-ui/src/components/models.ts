@@ -99,13 +99,13 @@ export interface Repository {
 export interface Folder {
   id: string;
   name: string;
-  files: string[];
+  files: LocalFile[];
   owner: boolean;
 }
 
 export interface LocalFile {
-  id: string;
-  name: string;
+  name: string
+  size: string
   created_at: string
 }
 

@@ -18,19 +18,15 @@
 from typing import List, Union
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
-from fastapi.requests import Request
 from starlette.status import HTTP_200_OK
 from sse_starlette.sse import EventSourceResponse
-from simple_backend.schemas.nodes import UINode, CustomNodeStructure, NodeStructure
-from simple_backend.service.config_service import get_requirements
-import simple_backend.service.execution_service as es
-from simple_backend.controller.standard_auth_api import get_current_user
+from schemas.nodes import UINode, CustomNodeStructure, NodeStructure
+from service.config_service import get_requirements
+import service.execution_service as es
+from controller.standard_auth_api import get_current_user
 from dotenv import load_dotenv
 load_dotenv()
 
-
-MESSAGE_STREAM_DELAY = 1
-MESSAGE_STREAM_RETRY_TIMEOUT = 15000
 
 router = APIRouter()
 
@@ -39,8 +35,9 @@ def execute(config: dict, user = Depends(get_current_user)) -> None:
     """
     Api used to launch the execution of a dataflow
     """
-    execution_id = es.create_execution_instance(config, user)
-    task_id = es.execute_dataflow.delay(execution_id)
+    user_id = user['_id']
+    execution_id = es.create_execution_instance(config, user_id)
+    task_id = es.execute_dataflow.delay(execution_id, user_id)
     es.set_execution_field(execution_id, 'celery_task_id', str(task_id))
     return Response(status_code=HTTP_200_OK)
 

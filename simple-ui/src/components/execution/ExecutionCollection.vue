@@ -168,7 +168,7 @@ const selectExecution = async (executionId: string) => {
     };
   }
 
-  monitorEventSource.onerror = (error) => {
+  monitorEventSource.onerror = () => {
     // console.error("SSE error:", error);
     monitorEventSource.close()
   };

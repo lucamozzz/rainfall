@@ -18,8 +18,8 @@
 
 import pytest
 import json
-from simple_backend.config import here
-from simple_backend.controller.config_api import ConfigResponse
+from config import here
+from controller.config_api import ConfigResponse
 from tests.create_test_client import create_test_client, setup_dirs
 
 

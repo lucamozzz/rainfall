@@ -1,7 +1,5 @@
 version: '3'
-
 services:
-
   webapp:
     build: .
     image: proslabunicam/rainfall
@@ -16,11 +14,10 @@ services:
       - RAIN_STRUCTURE_URL=https://firebasestorage.googleapis.com/v0/b/rainfall-e8e57.appspot.com/o/rain_structure.json?alt=media
       - MONGODB_URL=mongodb://mongo:27017/
       - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
-      # - SECRET_KEY=
-
-      # Uncomment during development
-      # - MODE=DEBUG
-      # - RAIN_REPOSITORY_URL=git+ssh://git@bitbucket.org/proslabteam/rain_unicam@dev#egg=rain
+    networks:
+      [
+        net
+      ]
 
   mongo:
     image: mongo:latest
@@ -28,34 +25,17 @@ services:
     ports:
       - 27017:27017
     healthcheck:
-      test: test $$(echo "rs.initiate().ok || rs.status().ok" | mongo -u mongo -p mongo --quiet) -eq 1
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 30s
-    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
-
-  mongo-init:
-    image: mongo
-    restart: on-failure:20
-    depends_on:
-      - mongo
-    command: >
-      mongosh --host mongo:27017 --eval 
-      '
-        var cfg = {
-          "_id": "rs0",
-          "version": 1,
-          "members": [
-            {
-              "_id": 0,
-              "host": "mongo:27017",
-              "priority": 2
-            }
-          ]
-        };
-        rs.initiate(cfg);
-      '
+    volumes:
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      [
+        net
+      ]
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
 
   rabbitmq:
     image: rabbitmq:3.11-management
@@ -63,9 +43,10 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      [
+        net
+      ]
 
   worker:
     build: .
@@ -78,3 +59,11 @@ services:
     environment:
       - MONGODB_URL=mongodb://mongo:27017/
       - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
+
+networks:
+  net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

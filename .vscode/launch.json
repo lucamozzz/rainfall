@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "command": "yarn --cwd ${workspaceFolder}/simple-ui dev",
+            "name": "Launch Quasar",
+            "request": "launch",
+            "type": "node-terminal"
+        },
+        {
+            "name": "Launch FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "sudo": true,
+            "module": "gunicorn",
+            "args": [
+                "--bind",
+                "0.0.0.0:5000",
+                "-t",
+                "0",
+                "-w",
+                "4",
+                "-k",
+                "uvicorn.workers.UvicornWorker",
+                "--pythonpath",
+                "${workspaceFolder}/simple-backend/simple_backend",
+                "app:create_app",
+                "--reload"
+            ],
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Launch Celery Worker",
+            "type": "debugpy",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/simple-backend/simple_backend"
+            },
+            "module": "celery",
+            "args": [
+                "-A",
+                "service.execution_service.celery",
+                "worker",
+                "--loglevel=info"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}

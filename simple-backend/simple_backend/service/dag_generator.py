@@ -21,7 +21,7 @@ from typing import List
 
 import networkx as nx
 
-from simple_backend.schemas.nodes import Node
+from schemas.nodes import Node
 
 
 @dataclass

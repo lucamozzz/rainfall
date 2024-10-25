@@ -17,11 +17,10 @@
 FROM python:3.9-slim
 
 ARG SSH_KEY
+ENV PYTHONPATH=/app/simple_backend
 
 RUN mkdir /app
 WORKDIR /app
-
-ARG SSH_KEY
 
 RUN apt-get -y update
 RUN apt-get -y install git
@@ -34,4 +33,4 @@ COPY simple-backend/simple_backend simple_backend/
 COPY simple-backend/requirements.txt ./
 RUN pip install -r requirements.txt
 
-CMD celery -A simple_backend.service.execution_service.celery worker --loglevel=info
+CMD celery -A service.execution_service.celery worker --loglevel=info

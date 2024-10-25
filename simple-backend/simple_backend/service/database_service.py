@@ -3,7 +3,7 @@ import os
 def get_database():
     db_type = os.environ.get("DATABASE_TYPE", "MONGODB")
     if db_type == "MONGODB":
-        from simple_backend.databases.mongodb import MongoDB
+        from databases.mongodb import MongoDB
         MONGODB_URL=os.getenv('MONGODB_URL')
         return MongoDB(MONGODB_URL)
 

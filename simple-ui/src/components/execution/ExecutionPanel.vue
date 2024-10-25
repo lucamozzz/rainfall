@@ -57,7 +57,6 @@ import { useMonitorStore } from '../../stores/monitorStore'
 import { api } from '../../boot/axios';
 import { useQuasar } from 'quasar';
 import { getStatusColor } from '../utils';
-import { useCanvasStore } from 'src/stores/canvasStore';
 import { useExecutionStore } from 'src/stores/executionStore';
 import { useRouter } from 'vue-router';
 

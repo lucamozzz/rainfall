@@ -19,17 +19,22 @@
 <template>
   <q-page padding>
     <div class="q-pa-md q-gutter-sm">
-      <q-btn icon="file_download" color="secondary" label="Save DataFlow" @click="saveDataFlow()"
-        data-cy="saveDataflow"></q-btn>
+      <q-btn icon="file_download" color="secondary" label="Save DataFlow" @click="saveDataFlow" :disable="isUploading"
+        data-cy="saveDataflow">
+      </q-btn>
       <repository-manager></repository-manager>
     </div>
 
     <q-separator spaced=""></q-separator>
-
+    <q-dialog v-model="isUploading" persistent no-backdrop-dismiss>
+      <q-spinner color="primary" size="100px" />
+    </q-dialog>
     <div class="q-pa-md q-gutter-sm">
-      <q-file ref="filePicker" style="display: none" accept=".csv,.xes" v-model="file"
-        @update:model-value="loadFile()"></q-file>
-      <q-btn icon="file_upload" color="secondary" label="Upload File" @click="filePicker.pickFiles()" />
+      <q-file ref="filePicker" style="display: none" accept=".csv,.xes" :loading="isUploading" v-model="file"
+        max-file-size="104857600" @update:model-value="loadFile">
+      </q-file>
+      <q-btn icon="file_upload" color="secondary" label="Upload File" @click="filePicker.pickFiles()"
+        :disable="isUploading" />
       <local-file-manager></local-file-manager>
     </div>
   </q-page>
@@ -50,6 +55,7 @@ const repoStore = useRepoStore();
 const folderStore = useFolderStore();
 const filePicker: Ref<QFile> = ref(null);
 const file: Ref<File> = ref(null);
+const isUploading: Ref<boolean> = ref(false);
 
 const saveDataFlow = async () => {
   const config = getConfig();
@@ -64,7 +70,6 @@ const saveDataFlow = async () => {
   }
   config['ui'] = JSON.parse(canvasState)
   config['repository'] = repoStore.currentRepo;
-
 
   await api
     .post('/config', config)
@@ -86,6 +91,7 @@ const saveDataFlow = async () => {
 };
 
 const loadFile = async () => {
+  isUploading.value = true;
   return await new Promise<boolean>((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -93,16 +99,31 @@ const loadFile = async () => {
       try {
         const uploadedFile = reader.result as string;
         await api.post('/folders/file', { name: file.value.name, content: uploadedFile, folder: folderStore.currentFolder })
-          .then((response) => {
+          .then(() => {
+            $q.notify({
+              message: 'File uploaded successfully!',
+              type: 'positive',
+            });
             resolve(true);
           })
           .catch((error) => {
             console.error(error);
+            $q.notify({
+              message: 'File upload failed!',
+              type: 'negative',
+            });
             resolve(false);
           });
       } catch (error) {
         console.error(error);
+        $q.notify({
+          message: 'Error processing the file!',
+          type: 'negative',
+        });
         resolve(false);
+      } finally {
+        isUploading.value = false;
+        file.value = null;
       }
     };
     reader.readAsText(file.value, 'utf8');

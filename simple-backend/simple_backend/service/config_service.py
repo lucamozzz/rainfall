@@ -20,14 +20,14 @@ import uuid
 import os
 from datetime import datetime
 from typing import List, Union
-from simple_backend.errors import DagCycleError
-from simple_backend.schemas.nodes import UI, CustomNode, Node, UINode, CustomNodeStructure, NodeStructure
-from simple_backend.service import node_service
-from simple_backend.service.dag_generator import DagCreator
-from simple_backend.service.node_service import parse_custom_node_requirements
-from simple_backend.service.script_generator import ScriptGenerator
-from simple_backend.service.repository_service import add_dataflow_to_repo
-from simple_backend import config
+from errors import DagCycleError
+from schemas.nodes import UI, CustomNode, Node, UINode, CustomNodeStructure, NodeStructure
+from service import node_service
+from service.dag_generator import DagCreator
+from service.node_service import parse_custom_node_requirements
+from service.script_generator import ScriptGenerator
+from service.repository_service import add_dataflow_to_repo
+import config
 
 
 DATABASE_NAME='rainfall'

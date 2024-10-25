@@ -18,12 +18,12 @@
 
 from fastapi import APIRouter, Response, Depends
 from starlette.status import HTTP_204_NO_CONTENT
-from simple_backend import config
-from simple_backend.errors import BadRequestError
-from simple_backend.schemas.dataflow import DataFlow
-from simple_backend.schemas.repository_schemas import RepositoryGet, RepositoryPost
-import simple_backend.service.repository_service as rs
-from simple_backend.controller.standard_auth_api import get_current_user
+import config
+from errors import BadRequestError
+from schemas.dataflow import DataFlow
+from schemas.repository_schemas import RepositoryGet, RepositoryPost
+import service.repository_service as rs
+from controller.standard_auth_api import get_current_user
 
 
 router = APIRouter()

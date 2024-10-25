@@ -24,7 +24,7 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: str or None = None
+    username: str = None
 
 
 class User(BaseModel):

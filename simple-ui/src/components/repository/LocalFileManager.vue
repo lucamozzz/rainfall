@@ -40,7 +40,7 @@
             </q-item-section>
             <q-item-section top side>
                 <div class="text-grey-8 q-gutter-xs">
-                    <q-btn size="12px" flat dense round icon="content_copy" @click="copyID(folder.id)" />
+                    <q-btn size="12px" flat dense round icon="content_copy" @click="copyID(folder.name)" />
                     <q-btn size="12px" flat dense round icon="share" v-if="folder.owner == true" title="Share folder"
                         @click="openUsersDialog(folder)" data-cy="deleteRepo" />
                     <q-btn size="12px" flat dense round icon="delete" title="Delete folder" v-if="folder.owner == true"
@@ -72,20 +72,20 @@ onMounted(async () => {
         .get<Folder[]>('/folders')
         .then((res) => {
             folderStore.folders = new Map<string, Folder>();
-            res.data.forEach((repo: Folder) => folderStore.folders.set(repo.id, repo));
+            res.data.forEach((folder: Folder) => folderStore.folders.set(folder.id, folder));
             if (folderStore.folders.size > 0) {
                 folderStore.currentFolder = [...folderStore.folders.values()][0].id;
             }
         })
-        .catch((error: AxiosError) => {
-            $q.notify({ message: "Unable to load folders", type: 'negative' });
+        .catch(() => {
+            $q.notify({ message: 'Unable to load folders', type: 'negative' });
         });
 });
 
 const copyID = (text: string) => {
     copyToClipboard(text)
         .then(() => {
-            $q.notify({ message: "Folder ID copied to clipboard!", type: 'positive' })
+            $q.notify({ message: 'Folder ID copied to clipboard!', type: 'positive' })
         })
 }
 
@@ -125,7 +125,7 @@ const deleteFolder = (folder: Folder) => {
         cancel: true,
     }).onOk(() => {
         api
-            .delete('/folders/' + folder.id)
+            .delete('/folders/' + folder.name)
             .then(() => {
                 folderStore.folders.delete(folder.id);
                 if (folderStore.folders.size == 1) {
@@ -154,7 +154,7 @@ const markAsDefault = (folder: Folder) => {
 
 const openFolderDialog = async (folder: Folder) => {
     await api
-        .get('/folders/' + folder.id)
+        .get('/folders/' + folder.name)
         .then((res) => {
             if (res.data.length == 0) {
                 $q.notify({
@@ -162,12 +162,14 @@ const openFolderDialog = async (folder: Folder) => {
                     type: 'negative',
                 });
             } else {
+                folder.files = []
                 res.data.forEach((file: LocalFile) => {
-                    folderStore.files.set(file.id, file)
+                    folder.files.push(file);
+                    folderStore.files.set(file.name, file)
                 });
                 $q.dialog({
                     component: FolderDialog,
-                    componentProps: { folder: folder },
+                    componentProps: { folder: folder, files: folder.files },
                 });
             }
         })
@@ -176,7 +178,7 @@ const openFolderDialog = async (folder: Folder) => {
 
 const openUsersDialog = async (folder: Folder) => {
     await api
-        .get('/folders/' + folder.id + '/users')
+        .get('/folders/share/' + folder.name + '/users')
         .then((res: AxiosResponse) => {
             const folderUsers: string[] = res.data;
             $q.dialog({

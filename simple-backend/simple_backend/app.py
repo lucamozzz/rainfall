@@ -25,9 +25,9 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from simple_backend.config import here
-from simple_backend.controller.routes import initialize_api_routes
-from simple_backend.errors import register_errors
+from config import here
+from controller.routes import initialize_api_routes
+from errors import register_errors
 
 
 def create_app():
