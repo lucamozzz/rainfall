@@ -33,7 +33,7 @@ pipelines:
               artifacts:
                 - "*.tar"
           - step:
-              name: Build Rainfall worker Image
+              name: Build Rainfall worker image
               script:
                 - IMAGE_NAME="rainfall_worker"
                 - export DOCKER_BUILDKIT=1
@@ -46,7 +46,7 @@ pipelines:
               artifacts:
                 - "*_worker.tar"
       - step:
-          name: Deploy to Production
+          name: Deploy to DockerHub
           deployment: Production
           script:
             - echo ${DOCKERHUB_PWD} | docker login --username "$DOCKERHUB_USER" --password-stdin
@@ -54,15 +54,13 @@ pipelines:
             - docker load --input "rainfall.tar"
             - IMAGE_NAME="rainfall"
             - IMAGE="proslabunicam/rainfall"
-            - VERSION="prod-0.1.${BITBUCKET_BUILD_NUMBER}"
-            - docker tag "${IMAGE_NAME}" "${IMAGE}:${VERSION}"
-            - docker push "${IMAGE}:${VERSION}"
+            - docker tag "${IMAGE_NAME}" "${IMAGE}"
+            - docker push "${IMAGE}"
             # Load and push the worker image
             - docker load --input "rainfall_worker.tar"
             - WORKER_IMAGE_NAME="rainfall_worker"
             - WORKER_IMAGE="proslabunicam/rainfall_worker"
-            - WORKER_VERSION="prod-0.1.${BITBUCKET_BUILD_NUMBER}"
-            - docker tag "${WORKER_IMAGE_NAME}" "${WORKER_IMAGE}:${WORKER_VERSION}"
-            - docker push "${WORKER_IMAGE}:${WORKER_VERSION}"
+            - docker tag "${WORKER_IMAGE_NAME}" "${WORKER_IMAGE}"
+            - docker push "${WORKER_IMAGE}"
           services:
             - docker
