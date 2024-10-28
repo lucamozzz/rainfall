@@ -66,7 +66,3 @@ pipelines:
             - docker push "${WORKER_IMAGE}:${WORKER_VERSION}"
           services:
             - docker
-
-definitions:
-  caches:
-    docker: /var/lib/docker
