@@ -38,7 +38,7 @@
                   title="View file" @click="visualizeFile(file.name)" />
               </div>
             </q-item-section>
-            <q-item-section @click="copyID(folder.name + '/' + file)" class="cursor-pointer">
+            <q-item-section @click="copyID(folder.name + '/' + file.name)" class="cursor-pointer">
               <q-item-label lines="1" class="text-weight-medium">{{ file.name }}</q-item-label>
               <q-item-label lines="1" :caption="true" class="text-weight-medium">{{ file.created_at + ' • ' + file.size
                 }}</q-item-label>

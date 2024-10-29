@@ -10,7 +10,7 @@ services:
       - MODE=PROD
       - PORT=5000
       - SERVER_ADDR=0.0.0.0
-      - RAIN_REPOSITORY_URL=git+ssh://git@bitbucket.org/proslabteam/rain_unicam@main#egg=rain
+      - RAIN_REPOSITORY_URL=rain-dm
       - RAIN_STRUCTURE_URL=https://firebasestorage.googleapis.com/v0/b/rainfall-e8e57.appspot.com/o/rain_structure.json?alt=media
       - MONGODB_URL=mongodb://mongo:27017/?directConnection=true
       - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
@@ -46,7 +46,7 @@ services:
       - mongo
       - rabbitmq
     environment:
-      - MONGODB_URL=mongodb://mongo:27017/
+      - MONGODB_URL=mongodb://mongo:27017/?directConnection=true
       - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
 
   worker2:
@@ -59,7 +59,7 @@ services:
       - mongo
       - rabbitmq
     environment:
-      - MONGODB_URL=mongodb://mongo:27017/
+      - MONGODB_URL=mongodb://mongo:27017/?directConnection=true
       - BROKER_URL=amqp://guest:guest@rabbitmq:5672/
       
 volumes:
